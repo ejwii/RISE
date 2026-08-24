@@ -1,0 +1,1763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RISE — Simplest MVP</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #6c5ce7;
+    --purple-light: #f0ebff;
+    --red: #e74c3c;
+    --dark: #1a1a2e;
+    --text: #1a1a2e;
+    --muted: #999;
+    --border: rgba(0,0,0,0.08);
+    --bg: #f8f7f4;
+  }
+  body.dark {
+    --purple-light: #2a2440;
+    --dark: #f0f0f5;
+    --text: #f0f0f5;
+    --muted: #8a8a95;
+    --border: rgba(255,255,255,0.1);
+    --bg: #1a1a24;
+  }
+  body.dark { background: #12121a; }
+  body.dark .phone { background: #1a1a24; }
+  body.dark .card { background: #22222e; }
+  body.dark .status-bar,
+  body.dark .notch { background: #000; }
+  body.dark .nav-bar { background: #000; }
+  body.dark .pill { background: #22222e; color: #8a8a95; }
+  body.dark .pill.active { background: #f0f0f5; color: #12121a; }
+  body.dark input, body.dark textarea { background: #22222e; color: #f0f0f5; }
+  body.dark .option-btn { background: #22222e; color: #f0f0f5; }
+  body.dark .avatar:not([style*="background"]) { background: #2a2440; }
+  body.dark .logo { color: #f0f0f5; }
+  body.dark .modal-box { background: #1a1a24; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #eceae5;
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 48px;
+    transition: background 0.25s;
+  }
+  .bottom-nav { display: flex; align-items: center; justify-content: space-around; background: #fff; border-top: 1px solid var(--border); padding: 10px 6px 8px; }
+  body.dark .bottom-nav { background: #1a1a24; }
+  .bn-item { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; color: var(--muted); font-size: 9px; flex: 1; }
+  .bn-item.active { color: var(--purple); }
+  .bn-item i { font-size: 20px; }
+  .bn-post { width: 42px; height: 42px; border-radius: 50%; background: var(--purple); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(108,92,231,0.4); margin-top: -14px; }
+  .bn-post i { font-size: 20px; }
+  .mini-crisis { position: absolute; top: 10px; right: 12px; background: var(--red); color: #fff; border-radius: 20px; padding: 4px 10px; font-size: 10px; font-weight: 600; display: flex; align-items: center; gap: 4px; cursor: pointer; z-index: 5; }
+  .page-header { text-align: center; margin-bottom: 6px; }
+  .logo { font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700; color: var(--dark); letter-spacing: -1px; }
+  .logo span { color: var(--purple); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 4px; max-width: 300px; text-align: center; line-height: 1.6; }
+
+  .nav-pills { display: flex; gap: 6px; justify-content: center; margin: 16px 0; }
+  .pill { border: 1.5px solid var(--border); background: #fff; border-radius: 24px; padding: 5px 14px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .pill.active { background: var(--dark); color: #fff; border-color: var(--dark); }
+
+  .phone { width: 340px; border-radius: 44px; border: 8px solid var(--dark); overflow: hidden; background: #fff; box-shadow: 0 40px 80px rgba(0,0,0,0.18); position: relative; }
+  .notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 90px; height: 26px; background: var(--dark); border-radius: 0 0 18px 18px; z-index: 100; }
+  .status-bar { background: var(--dark); color: #fff; font-size: 11px; padding: 30px 20px 8px; display: flex; justify-content: space-between; }
+
+  .screen { display: none; flex-direction: column; min-height: 560px; background: var(--bg); }
+  .screen.active { display: flex; }
+
+  .nav-bar { background: var(--dark); color: #fff; padding: 11px 16px; font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 500; }
+
+  .screen-body { flex: 1; padding: 14px; overflow-y: auto; }
+
+  .card { background: #fff; border-radius: 18px; border: 1px solid var(--border); padding: 14px; margin-bottom: 12px; }
+  .bubble-in { align-self: flex-start; max-width: 78%; background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 14px 14px 14px 4px; padding: 9px 12px; font-size: 12.5px; }
+  body.dark .bubble-in { background: #22222e; }
+  .bubble-out { align-self: flex-end; max-width: 78%; background: var(--purple); color: #fff; border-radius: 14px 14px 4px 14px; padding: 9px 12px; font-size: 12.5px; }  .card-title { font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+
+  .streak-wrap { text-align: center; padding: 8px 0 6px; }
+  .streak-ring { width: 100px; height: 100px; border-radius: 50%; border: 7px solid var(--purple); background: var(--purple-light); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 10px; }
+  .streak-num { font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 700; color: var(--purple); line-height: 1; }
+  .streak-lbl { font-size: 9px; color: var(--purple); text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; }
+
+  .btn { width: 100%; border: none; border-radius: 13px; padding: 12px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .btn-purple { background: var(--purple); color: #fff; }
+  .btn-outline { background: none; border: 1.5px solid var(--purple); color: var(--purple); }
+
+  .crisis-btn { width: 100%; background: var(--red); color: #fff; border: none; border-radius: 14px; padding: 14px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; font-family: 'Space Grotesk', sans-serif; animation: pulse-red 2s infinite; }
+  @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.35); } 50% { box-shadow: 0 0 0 10px rgba(231,76,60,0); } }
+
+  .option-btn { width: 100%; border: 1.5px solid var(--border); background: #fff; border-radius: 13px; padding: 12px 14px; text-align: left; font-size: 13px; cursor: pointer; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .option-btn.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple); font-weight: 500; }
+  .option-btn i { font-size: 20px; color: var(--purple); }
+
+  .avatar { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; font-family: 'Space Grotesk', sans-serif; width: 36px; height: 36px; background: var(--purple-light); color: var(--purple); font-size: 13px; }
+  .mentor-post { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .mentor-post:last-child { border-bottom: none; }
+  .mentor-name { font-size: 12px; font-weight: 600; }
+  .mentor-tag { font-size: 10px; color: var(--muted); }
+  .mentor-text { font-size: 12.5px; color: var(--text); line-height: 1.55; margin-top: 5px; }
+  .mentor-time { font-size: 10px; color: var(--muted); margin-top: 5px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 24px 24px 0 0; padding: 24px 20px 32px; width: 100%; max-width: 340px; }
+  .modal-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; margin-bottom: 6px; text-align: center; }
+  .modal-sub { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; margin-bottom: 20px; }
+  .sheet-item { padding: 14px 4px; font-size: 14px; font-weight: 500; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; gap: 12px; }
+  .sheet-item:last-child { border-bottom: none; }
+  .sheet-item.danger { color: #e74c3c; }
+  .post-more { color: var(--muted); cursor: pointer; padding: 4px; }
+
+  .footer-note { margin-top: 18px; font-size: 11px; color: #aaa; text-align: center; max-width: 320px; line-height: 1.6; }
+  .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: none; stroke: currentColor; }
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+<svg style="display:none;">
+<symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></symbol>
+<symbol id="i-user-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3.1-7 7-7s7 3 7 7"/><path d="M19 8v6M22 11h-6"/></symbol>
+<symbol id="i-user-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3.1-7 7-7s7 3 7 7"/><path d="M16 11l2 2 4-4"/></symbol>
+<symbol id="i-arrow-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M10 20a2 2 0 004 0"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.9 2.9l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.9-2.9l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.9-2.9l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.9 2.9l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.6 1z"/></symbol>
+<symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9.5-9A5.5 5.5 0 0112 6a5.5 5.5 0 019.5 6C19 16.6 12 21 12 21z"/></symbol>
+<symbol id="i-heart-rate-monitor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-7 4 14 2-7h6"/></symbol>
+<symbol id="i-message-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></symbol>
+<symbol id="i-message-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 01-11.3 7.3L4 21l1.7-5.7A8 8 0 1121 12z"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+<symbol id="i-repeat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></symbol>
+<symbol id="i-dots" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+<symbol id="i-quote" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11H6a1 1 0 01-1-1V7a1 1 0 011-1h3v3c0 2-1 3-3 4"/><path d="M19 11h-4a1 1 0 01-1-1V7a1 1 0 011-1h3v3c0 2-1 3-3 4"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M5.7 5.7l12.6 12.6"/></symbol>
+<symbol id="i-volume-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9H6a1 1 0 00-1 1v4a1 1 0 001 1h3l4 4V5l-4 4z"/><path d="M3 3l18 18"/></symbol>
+<symbol id="i-logout" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8V6a2 2 0 012-2h7a2 2 0 012 2v12a2 2 0 01-2 2h-7a2 2 0 01-2-2v-2"/><path d="M3 12h12"/><path d="M12 9l3 3-3 3"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></symbol>
+<symbol id="i-circle-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 5-5"/></symbol>
+<symbol id="i-rosette-discount-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 1.4 2.7-.3 1.2 2.4 2.4 1.2-.3 2.7L22 12l-1.6 2.4.3 2.7-2.4 1.2-1.2 2.4-2.7-.3L12 22l-2.4-1.6-2.7.3-1.2-2.4-2.4-1.2.3-2.7L2 12l1.6-2.4-.3-2.7 2.4-1.2 1.2-2.4 2.7.3z"/><path d="M8.5 12.5l2.5 2.5 5-5"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h13l-3 5 3 5H5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
+<symbol id="i-info-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
+<symbol id="i-ambulance" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V8a1 1 0 011-1h9v10"/><path d="M13 10h4l3 3v4h-7"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M7 6v3M5.5 7.5h3"/></symbol>
+<symbol id="i-photo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-4 4-2-2-5 5"/></symbol>
+<symbol id="i-photo-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 12h4M11 10v4"/><path d="M21 15l-4-4-3 3"/></symbol>
+<symbol id="i-player-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4V8z"/></symbol>
+<symbol id="i-pill" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M9 9l6 6"/></symbol>
+<symbol id="i-glass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12l-1.5 12a4.5 4.5 0 01-9 0L6 3z"/><path d="M12 15v6M8 21h8"/></symbol>
+<symbol id="i-cigarette" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="10" width="16" height="4" rx="1"/><path d="M14 10v4M2 17s2-2 4-2M2 20s2-2 4-2"/><rect x="18" y="10" width="4" height="4"/></symbol>
+<symbol id="i-cards" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="12" height="16" rx="2" transform="rotate(-10 10 14)"/><rect x="9" y="4" width="12" height="16" rx="2"/></symbol>
+<symbol id="i-tools-kitchen-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v9M9 3v9M6 12a3 3 0 006 0V3"/><path d="M18 3s-3 2-3 6 3 6 3 6v6"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a2 2 0 002.8 2.8"/><path d="M9.5 5.3A10 10 0 0121 12s-1.2 2.2-3.4 3.9M6.1 6.9C4 8.6 3 12 3 12s3 6 9 6c1 0 2-.2 3-.5"/></symbol>
+<symbol id="i-brain" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 00-3 3 3 3 0 00-2 5 3 3 0 002 5 3 3 0 003 2c0-3 0-13 0-15z"/><path d="M15 4a3 3 0 013 3 3 3 0 012 5 3 3 0 01-2 5 3 3 0 01-3 2c0-3 0-13 0-15z"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.5a16 16 0 0120 0"/><path d="M5 12a11 11 0 0114 0"/><path d="M8.5 15.5a6 6 0 017 0"/><circle cx="12" cy="19" r="1" fill="currentColor"/></symbol>
+</svg>
+
+
+
+<div class="page-header">
+  <div class="logo">R<span>I</span>SE</div>
+</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="status-bar"><span>9:41</span><svg class="icon"><use href="#i-wifi"/></svg></div>
+
+  <!-- ONBOARDING STEP 1: CHOOSE ACCOUNT TYPE -->
+  <div class="screen active" id="screen-login">
+    <div class="nav-bar">RISE</div>
+    <div class="screen-body">
+      <div style="text-align:center;padding:24px 0 20px;">
+        <div style="font-size:40px;margin-bottom:10px;">🌱</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;margin-bottom:6px;">Welcome back</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Log in to keep tracking your progress.</div>
+      </div>
+      <div class="card">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Username</div>
+        <input type="text" id="loginUsername" placeholder="Your username" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px;" />
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Password</div>
+        <input type="password" id="loginPassword" placeholder="Your password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;" />
+        <div id="loginError" style="display:none;color:#e74c3c;font-size:11px;margin-top:8px;">Enter both a username and password.</div>
+      </div>
+      <button class="btn btn-purple" onclick="attemptLogin()"><svg class="icon"><use href="#i-check"/></svg> Log in</button>
+      <div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:16px;">Don't have an account? <span style="color:var(--purple);font-weight:600;cursor:pointer;" onclick="showScreen('onboard')">Sign up</span></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-onboard">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('login')"><use href="#i-arrow-left"/></svg> RISE · sign up</div>
+    <div class="screen-body">
+      <div style="text-align:center;padding:10px 0 16px;">
+        <div style="font-size:36px;margin-bottom:10px;">🌱</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;margin-bottom:6px;">You are safe here</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;">Choose how you want to join.</div>
+      </div>
+
+      <div class="card" style="cursor:pointer;" onclick="showScreen('signupPersonal')">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg class="icon" style="font-size:20px;color:var(--purple);"><use href="#i-user"/></svg></div>
+          <div style="flex:1;">
+            <div class="card-title" style="margin-bottom:2px;">Personal account</div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.5;">Fully anonymous. No real name, no email, ever.</div>
+          </div>
+          <svg class="icon" style="color:var(--muted);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+
+      <div class="card" style="cursor:pointer;" onclick="showScreen('mentorEligibility')">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;border-radius:12px;background:#f0e6ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg class="icon" style="font-size:20px;color:var(--purple);"><use href="#i-rosette-discount-check"/></svg></div>
+          <div style="flex:1;">
+            <div class="card-title" style="margin-bottom:2px;">Mentor account</div>
+            <div style="font-size:11px;color:var(--muted);line-height:1.5;">Verified, real identity. Requires eligibility.</div>
+          </div>
+          <svg class="icon" style="color:var(--muted);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING STEP 2A: PERSONAL SIGNUP -->
+  <div class="screen" id="screen-signupPersonal">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('onboard')"><use href="#i-arrow-left"/></svg> Personal account · Step 1 of 2</div>
+    <div class="screen-body">
+      <div class="card">
+        <div class="card-title">Username</div>
+        <input type="text" id="suUsername" placeholder="e.g. Warrior_247" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
+        <div class="card-title">Password</div>
+        <input type="password" id="suPassword" placeholder="••••••••" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
+        <div id="suError" style="display:none;color:#e74c3c;font-size:11px;margin-top:8px;">Enter a username and a password (6+ characters).</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">No real name, no email, ever. Password just lets you log back in as this same anonymous identity.</div>
+      </div>
+      <button class="btn btn-purple" onclick="goToAddictionStep()"><svg class="icon"><use href="#i-arrow-right"/></svg> Continue</button>
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px;line-height:1.6;">Your data stays on your device.</div>
+    </div>
+  </div>
+
+  <!-- ONBOARDING STEP 2D: PERSONAL — ADDICTION SELECT -->
+  <div class="screen" id="screen-signupAddiction">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('signupPersonal')"><use href="#i-arrow-left"/></svg> Personal account · Step 2 of 2</div>
+    <div class="screen-body">
+      <div class="card">
+        <div class="card-title">What are you working on?</div>
+        <div style="margin-top:6px;">
+          <button class="option-btn selected" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-glass"/></svg>Alcohol</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-cigarette"/></svg>Smoking / nicotine</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-pill"/></svg>Drugs / substance use</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-eye-off"/></svg>Pornography</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-cards"/></svg>Gambling</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-tools-kitchen-2"/></svg>Food / binge eating</button>
+          <button class="option-btn" onclick="selectAddiction(this)"><svg class="icon"><use href="#i-brain"/></svg>Other</button>
+        </div>
+        <input type="text" id="otherInput" placeholder="Type what you're working on..." style="display:none;width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:2px;" />
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;">This stays private. It's never shown on your profile.</div>
+      </div>
+      <div id="signupError" style="display:none;color:#e74c3c;font-size:11px;text-align:center;margin-bottom:8px;">Something went wrong creating your account. Try again.</div>
+      <button class="btn btn-purple" id="completeSignupBtn" onclick="completeSignup()"><svg class="icon"><use href="#i-arrow-right"/></svg> Start day one</button>
+    </div>
+  </div>
+
+
+  <!-- ONBOARDING STEP 2B: MENTOR ELIGIBILITY -->
+  <div class="screen" id="screen-mentorEligibility">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('onboard')"><use href="#i-arrow-left"/></svg> Mentor eligibility</div>
+    <div class="screen-body">
+      <div class="card">
+        <div class="card-title">To be verified as a mentor, you need one of:</div>
+        <div style="font-size:12px;line-height:1.9;margin-top:8px;">
+          <div><svg class="icon" style="color:var(--purple);"><use href="#i-circle-check"/></svg> 750+ followers earned on RISE, with real engagement</div>
+          <div><svg class="icon" style="color:var(--purple);"><use href="#i-circle-check"/></svg> An existing Instagram/social account (10k+) focused on recovery, verifiable by our team</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">Since RISE is new, most early mentors will qualify through the second path. Reviewed manually for now.</div>
+      </div>
+      <button class="btn btn-purple" onclick="showScreen('signupMentor')"><svg class="icon"><use href="#i-arrow-right"/></svg> I qualify — continue</button>
+      <button class="btn btn-outline" style="margin-top:10px;" onclick="showScreen('signupPersonal')">Not yet — join as personal account</button>
+    </div>
+  </div>
+
+  <!-- ONBOARDING STEP 2C: MENTOR SIGNUP -->
+  <div class="screen" id="screen-signupMentor">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('mentorEligibility')"><use href="#i-arrow-left"/></svg> Mentor signup</div>
+    <div class="screen-body">
+      <div class="card">
+        <div class="card-title">Real name</div>
+        <input type="text" placeholder="Full legal name" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
+        <div class="card-title">Email</div>
+        <input type="email" placeholder="you@email.com" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Mentor accounts are not anonymous. Your identity is verified before you can post.</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Proof of content</div>
+        <input type="text" placeholder="Instagram / social profile link" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">We'll check that your content genuinely relates to recovery before approving.</div>
+      </div>
+      <button class="btn btn-purple" onclick="showScreen('mentorPending')"><svg class="icon"><use href="#i-arrow-right"/></svg> Submit for review</button>
+    </div>
+  </div>
+
+  <!-- MENTOR PENDING -->
+  <div class="screen" id="screen-mentorPending">
+    <div class="nav-bar">Mentor signup</div>
+    <div class="screen-body" style="align-items:center;justify-content:center;display:flex;flex-direction:column;text-align:center;">
+      <svg class="icon" style="font-size:40px;color:var(--purple);margin-bottom:12px;"><use href="#i-clock"/></svg>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;margin-bottom:8px;">Under review</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px;">We manually verify every mentor. This can take a few days while RISE is early. You'll be notified once approved.</div>
+      <button class="btn btn-purple" style="margin-bottom:10px;" onclick="approveMentor()"><svg class="icon"><use href="#i-check"/></svg> Simulate approval (demo)</button>
+      <button class="btn btn-outline" onclick="showScreen('signupPersonal')">Join as personal account meanwhile</button>
+    </div>
+  </div>
+
+  <!-- MENTOR APPROVED -->
+  <div class="screen" id="screen-mentorApproved">
+    <div class="nav-bar" style="background:#27ae60;">Mentor signup</div>
+    <div class="screen-body" style="align-items:center;justify-content:center;display:flex;flex-direction:column;text-align:center;">
+      <svg class="icon" style="font-size:44px;color:#27ae60;margin-bottom:12px;"><use href="#i-rosette-discount-check"/></svg>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;margin-bottom:8px;">You're verified</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px;">Welcome, mentor. You can now post photos, and anonymous users can message you.</div>
+      <button class="btn btn-purple" onclick="showScreen('home'); setProfileType('mentor');"><svg class="icon"><use href="#i-arrow-right"/></svg> Go to my profile</button>
+    </div>
+  </div>
+
+
+  <!-- FEED -->
+  <div class="screen" id="screen-feed">
+    <div class="nav-bar" style="position:relative;display:flex;align-items:center;justify-content:space-between;">
+      <span>RISE · home</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="cursor:pointer;position:relative;display:inline-flex;" onclick="showScreen('notifications')">
+          <svg class="icon" style="font-size:18px;"><use href="#i-bell"/></svg>
+          <span style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;background:var(--red);border-radius:50%;"></span>
+        </span>
+        <div class="mini-crisis" style="position:static;" onclick="showScreen('emergency')"><svg class="icon"><use href="#i-heart-rate-monitor"/></svg> Crisis</div>
+      </div>
+    </div>
+    <div class="screen-body">
+      <div id="feed-new-posts"></div>
+      <div id="feed-base-posts"></div>
+      <div id="feed-empty-state" style="display:none;text-align:center;padding:40px 20px;color:var(--muted);">
+        <svg class="icon" style="font-size:32px;margin-bottom:10px;"><use href="#i-message-circle"/></svg>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">No posts yet</div>
+        <div style="font-size:12px;line-height:1.6;">Be the first to share something.</div>
+      </div>
+
+      <div style="font-size:10.5px;color:var(--muted);text-align:center;margin-top:6px;line-height:1.6;">Only verified mentors can post photos or be messaged. Anonymous users can't message each other.</div>
+    </div>
+    <div class="bottom-nav">
+      <div class="bn-item active" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
+      <div class="bn-item" onclick="showScreen('search')"><svg class="icon"><use href="#i-search"/></svg>Search</div>
+      <div class="bn-post" onclick="openCompose()"><svg class="icon"><use href="#i-plus"/></svg></div>
+      <div class="bn-item" onclick="showScreen('messages')" style="position:relative;"><span class="msg-badge" style="display:none;position:absolute;top:-2px;right:22%;background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;min-width:14px;height:14px;align-items:center;justify-content:center;padding:0 3px;">0</span><svg class="icon"><use href="#i-mail"/></svg>Messages</div>
+      <div class="bn-item" onclick="showScreen('home')"><svg class="icon"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div>
+
+  <!-- POST DETAIL / COMMENTS -->
+  <div class="screen" id="screen-postDetail">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('feed')"><use href="#i-arrow-left"/></svg> Post</div>
+    <div class="screen-body">
+      <div class="card">
+        <div class="mentor-post" style="border-bottom:none;padding-top:0;">
+          <div class="avatar" id="pd-avatar" style="cursor:pointer;" onclick="viewProfile(currentPostAuthorId)">EN</div>
+          <div style="flex:1;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+              <div class="mentor-name" id="pd-name" style="cursor:pointer;" onclick="viewProfile(currentPostAuthorId)">Name</div>
+              <span class="post-more" onclick="openPostOptions(currentPostId, currentPostAuthorId, PROFILES[currentPostAuthorId] ? PROFILES[currentPostAuthorId].name : '')"><svg class="icon"><use href="#i-dots"/></svg></span>
+            </div>
+            <div class="mentor-text" id="pd-text">Post text</div>
+            <div style="display:flex;gap:12px;margin-top:10px;align-items:center;">
+              <span class="like-btn" id="pd-like-btn" style="font-size:12px;color:var(--muted);cursor:pointer;" onclick="toggleLike(currentPostId, this, true)"><svg class="icon"><use href="#i-heart"/></svg> <span class="like-count" id="pd-likes">0</span></span>
+              <span class="repost-btn" id="pd-repost-btn" style="font-size:12px;color:var(--muted);cursor:pointer;" onclick="openRepostSheet(currentPostId, true)"><svg class="icon"><use href="#i-repeat"/></svg> <span class="repost-count" id="pd-reposts">0</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Comments</div>
+        <div id="pd-comments"></div>
+        <div id="pd-no-comments" style="font-size:11.5px;color:var(--muted);">No comments yet. Be the first to reply.</div>
+      </div>
+
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="pd-comment-input" placeholder="Write a reply..." style="flex:1;border:1.5px solid var(--border);border-radius:20px;padding:10px 14px;font-size:12.5px;outline:none;" />
+        <button onclick="addComment()" style="background:var(--purple);color:#fff;border:none;border-radius:50%;width:38px;height:38px;flex-shrink:0;cursor:pointer;"><svg class="icon"><use href="#i-send"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT (mentor only, one-way from anonymous → mentor) -->
+  <div class="screen" id="screen-chat">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;">
+      <svg class="icon" style="cursor:pointer;" onclick="showScreen('messages')"><use href="#i-arrow-left"/></svg>
+      <div class="avatar" id="chat-avatar" style="width:26px;height:26px;font-size:10px;">EN</div>
+      <span id="chat-name">Chat</span>
+    </div>
+    <div class="screen-body" style="display:flex;flex-direction:column;">
+      <div style="flex:1;display:flex;flex-direction:column;gap:10px;" id="chat-messages">
+        <div class="bubble-in">Hey — saw you're on day 7. That's real progress. What's been helping?</div>
+        <div class="bubble-out">Honestly just staying busy. Running helps a lot.</div>
+        <div class="bubble-in">That's a great outlet. Keep logging your gaps honestly — even the hard days. The trend is what matters, not perfection.</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <input type="text" id="chatInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendChatMessage()" style="flex:1;border:1.5px solid var(--border);border-radius:20px;padding:10px 14px;font-size:12.5px;outline:none;" />
+        <button onclick="sendChatMessage()" style="background:var(--purple);color:#fff;border:none;border-radius:50%;width:38px;height:38px;flex-shrink:0;cursor:pointer;"><svg class="icon"><use href="#i-send"/></svg></button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:8px;">Mentors can reply. Anonymous users can't message each other.</div>
+    </div>
+  </div>
+
+  <!-- SEARCH (find mentors) -->
+  <div class="screen" id="screen-search">
+    <div class="nav-bar" style="position:relative;">RISE · search
+      <div class="mini-crisis" onclick="showScreen('emergency')"><svg class="icon"><use href="#i-heart-rate-monitor"/></svg> Crisis</div>
+    </div>
+    <div class="screen-body">
+      <input type="text" id="searchInput" placeholder="Search anyone..." oninput="filterMentors()" style="width:100%;border:1.5px solid var(--border);border-radius:20px;padding:10px 16px;font-size:13px;outline:none;margin-bottom:14px;background:var(--bg);" />
+
+      <div id="searchEmptyState" style="text-align:center;padding:40px 20px;color:var(--muted);">
+        <svg class="icon" style="font-size:32px;margin-bottom:10px;"><use href="#i-search"/></svg>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">No one to find yet</div>
+        <div style="font-size:12px;line-height:1.6;">People will show up here once real accounts join RISE.</div>
+      </div>
+
+      <div id="noMentorResult" style="display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:20px;">No one found.</div>
+      <div style="font-size:10.5px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6;">Only verified mentors can be messaged. Personal accounts show a username only — never real identity.</div>
+    </div>
+    <div class="bottom-nav">
+      <div class="bn-item" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
+      <div class="bn-item active" onclick="showScreen('search')"><svg class="icon"><use href="#i-search"/></svg>Search</div>
+      <div class="bn-post" onclick="openCompose()"><svg class="icon"><use href="#i-plus"/></svg></div>
+      <div class="bn-item" onclick="showScreen('messages')" style="position:relative;"><span class="msg-badge" style="display:none;position:absolute;top:-2px;right:22%;background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;min-width:14px;height:14px;align-items:center;justify-content:center;padding:0 3px;">0</span><svg class="icon"><use href="#i-mail"/></svg>Messages</div>
+      <div class="bn-item" onclick="showScreen('home')"><svg class="icon"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div>
+
+  <!-- VIEW PROFILE (someone else's, from search) -->
+  <div class="screen" id="screen-viewProfile">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('search')"><use href="#i-arrow-left"/></svg> Profile</div>
+    <div class="screen-body">
+      <div class="card" style="text-align:center;">
+        <div class="avatar" id="vp-avatar" style="width:64px;height:64px;font-size:20px;margin:0 auto 10px;">EN</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;"><span id="vp-name">Name</span><span id="vp-badge"><svg class="icon" style="color:var(--purple);font-size:15px;"><use href="#i-rosette-discount-check"/></svg></span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="vp-subtitle">Verified mentor</div>
+        <div style="font-size:12px;color:var(--text);margin-top:10px;line-height:1.6;" id="vp-bio">Bio text</div>
+        <div style="display:flex;justify-content:center;gap:14px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="cursor:pointer;" onclick="showFollowList('posts')"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;" id="vp-posts">0</div><div style="font-size:9.5px;color:var(--muted);">Posts</div></div>
+          <div style="cursor:pointer;" onclick="showFollowList('followers')"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;" id="vp-followers">0</div><div style="font-size:9.5px;color:var(--muted);">Followers</div></div>
+          <div style="cursor:pointer;" onclick="showFollowList('following')"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;" id="vp-following">0</div><div style="font-size:9.5px;color:var(--muted);">Following</div></div>
+          <div id="vp-gap-wrap"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;" id="vp-gap">0d</div><div style="font-size:9.5px;color:var(--muted);">Longest gap</div></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-outline" id="vp-follow-btn" style="flex:1;" onclick="toggleFollow(currentViewedProfile, this)"><svg class="icon"><use href="#i-user-plus"/></svg> Follow</button>
+        <button class="btn btn-purple" id="vp-message-btn" style="flex:1;" onclick="openChat(currentViewedProfile)"><svg class="icon"><use href="#i-message-2"/></svg> Message</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Posts</div>
+        <div id="vp-posts-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOLLOW LIST (followers or following) -->
+  <div class="screen" id="screen-followList">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen(followListBackTarget)"><use href="#i-arrow-left"/></svg> <span id="followListTitle">Followers</span></div>
+    <div class="screen-body" id="followListItems"></div>
+  </div>
+
+  <!-- NOTIFICATIONS -->
+  <div class="screen" id="screen-notifications">
+    <div class="nav-bar">RISE · notifications</div>
+    <div class="screen-body">
+      <div class="card" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;" onclick="showScreen('settings')">
+        <svg class="icon" style="color:var(--muted);font-size:18px;margin-top:2px;"><use href="#i-bell"/></svg>
+        <div style="flex:1;font-size:12.5px;">Reminder: it's been a while — how are you doing today?<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">Yesterday</div></div>
+      </div>
+      <div style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px;line-height:1.6;">Follows, replies, and likes will show up here once you're connected with real people.</div>
+    </div>
+    <div class="bottom-nav">
+      <div class="bn-item" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
+      <div class="bn-item" onclick="showScreen('search')"><svg class="icon"><use href="#i-search"/></svg>Search</div>
+      <div class="bn-post" onclick="openCompose()"><svg class="icon"><use href="#i-plus"/></svg></div>
+      <div class="bn-item" onclick="showScreen('messages')" style="position:relative;"><span class="msg-badge" style="display:none;position:absolute;top:-2px;right:22%;background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;min-width:14px;height:14px;align-items:center;justify-content:center;padding:0 3px;">0</span><svg class="icon"><use href="#i-mail"/></svg>Messages</div>
+      <div class="bn-item" onclick="showScreen('home')"><svg class="icon"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div>
+
+
+  <!-- MESSAGES (DM list) -->
+  <div class="screen" id="screen-messages">
+    <div class="nav-bar" style="position:relative;">RISE · messages
+      <div class="mini-crisis" onclick="showScreen('emergency')"><svg class="icon"><use href="#i-heart-rate-monitor"/></svg> Crisis</div>
+    </div>
+    <div class="screen-body">
+      <div id="messagesList"></div>
+      <div style="font-size:10.5px;color:var(--muted);text-align:center;margin-top:16px;line-height:1.6;">You can only message verified mentors. Search to start a new conversation.</div>
+    </div>
+    <div class="bottom-nav">
+      <div class="bn-item" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
+      <div class="bn-item" onclick="showScreen('search')"><svg class="icon"><use href="#i-search"/></svg>Search</div>
+      <div class="bn-post" onclick="openCompose()"><svg class="icon"><use href="#i-plus"/></svg></div>
+      <div class="bn-item active" onclick="showScreen('messages')" style="position:relative;"><span class="msg-badge" style="display:none;position:absolute;top:-2px;right:22%;background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;min-width:14px;height:14px;align-items:center;justify-content:center;padding:0 3px;">0</span><svg class="icon"><use href="#i-mail"/></svg>Messages</div>
+      <div class="bn-item" onclick="showScreen('home')"><svg class="icon"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div>
+
+
+  <!-- PROFILE (formerly Home) -->
+  <div class="screen" id="screen-home">
+    <div class="nav-bar" style="position:relative;display:flex;align-items:center;justify-content:space-between;">
+      <span>RISE · profile</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="mini-crisis" style="position:static;" onclick="showScreen('emergency')"><svg class="icon"><use href="#i-heart-rate-monitor"/></svg> Crisis</div>
+        <svg class="icon" style="cursor:pointer;font-size:18px;" onclick="showScreen('settings')"><use href="#i-settings"/></svg>
+      </div>
+    </div>
+    <div class="screen-body">
+      <div id="profile-personal-view">
+      <div class="card streak-wrap">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Since your last slip</div>
+        <div id="streak-num-val" style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:700;color:var(--purple);line-height:1;">7</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">days</div>
+        <div style="display:flex;justify-content:center;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="cursor:pointer;" onclick="viewOwnFollowList('posts')"><div class="own-post-count" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">1</div><div style="font-size:9.5px;color:var(--muted);">Posts</div></div>
+          <div style="cursor:pointer;" onclick="viewOwnFollowList('followers')"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">12</div><div style="font-size:9.5px;color:var(--muted);">Followers</div></div>
+          <div style="cursor:pointer;" onclick="viewOwnFollowList('following')"><div style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">5</div><div style="font-size:9.5px;color:var(--muted);">Following</div></div>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:8px;">Your username is visible here — your addiction type never is.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Your gaps are getting longer</div>
+        <div id="gap-chart" style="display:flex;align-items:flex-end;gap:6px;height:70px;padding:8px 4px 0;"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;">Each bar is one run — the days you held between slips. A slip doesn't erase the bars before it, it just starts a new one. Watch the new bar grow.</div>
+      </div>
+
+      <button class="crisis-btn" onclick="showScreen('emergency')">
+        <svg class="icon"><use href="#i-heart-rate-monitor"/></svg> I need help right now
+      </button>
+
+      <div class="card">
+        <div class="card-title">Ranked by longest gap — no real names</div>
+        <div id="leaderboard-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="margin-bottom:8px;">Your posts</div>
+        <div id="own-posts-list"></div>
+      </div>
+
+      <button class="btn btn-outline" onclick="logSlip()"><svg class="icon"><use href="#i-flag"/></svg> I slipped — log it honestly</button>
+
+      <div class="card" style="cursor:pointer;margin-top:12px;" onclick="showScreen('settings')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg class="icon" style="font-size:18px;color:var(--purple);"><use href="#i-bell"/></svg>
+          <div style="flex:1;font-size:12.5px;font-weight:500;">Settings</div>
+          <svg class="icon" style="color:var(--muted);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+      </div>
+
+      <div id="profile-mentor-view" style="display:none;">
+        <div class="card" style="text-align:center;">
+          <div class="avatar" id="mv-avatar" style="width:64px;height:64px;font-size:20px;margin:0 auto 10px;background:#f0e6ff;">EN</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;"><span id="mv-name">Your name</span> <svg class="icon" style="color:var(--purple);font-size:15px;"><use href="#i-rosette-discount-check"/></svg></div>
+          <div id="mv-subtitle" style="font-size:11px;color:var(--muted);margin-top:2px;">Verified mentor · Real identity on file</div>
+          <div id="mv-bio" style="font-size:12px;color:var(--text);margin-top:10px;line-height:1.6;">3 years sober. Here for whoever needs proof it's possible. Not a therapist — just further down the road.</div>
+          <div style="display:flex;justify-content:center;gap:24px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+            <div style="cursor:pointer;" onclick="viewOwnFollowList('posts', currentUserId)"><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;" id="mv-posts">14</div><div style="font-size:10px;color:var(--muted);">Posts</div></div>
+            <div style="cursor:pointer;" onclick="viewOwnFollowList('followers', currentUserId)"><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;" id="mv-followers">214</div><div style="font-size:10px;color:var(--muted);">Followers</div></div>
+            <div style="cursor:pointer;" onclick="viewOwnFollowList('following', currentUserId)"><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;" id="mv-following">8</div><div style="font-size:10px;color:var(--muted);">Following</div></div>
+          </div>
+        </div>
+
+        <button class="btn btn-purple" onclick="openCompose()" style="margin-bottom:12px;"><svg class="icon"><use href="#i-plus"/></svg> New post</button>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom:8px;">Your posts</div>
+          <div id="mentor-own-posts"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <div class="bn-item" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
+      <div class="bn-item" onclick="showScreen('search')"><svg class="icon"><use href="#i-search"/></svg>Search</div>
+      <div class="bn-post" onclick="openCompose()"><svg class="icon"><use href="#i-plus"/></svg></div>
+      <div class="bn-item" onclick="showScreen('messages')" style="position:relative;"><span class="msg-badge" style="display:none;position:absolute;top:-2px;right:22%;background:var(--red);color:#fff;font-size:8px;font-weight:700;border-radius:8px;min-width:14px;height:14px;align-items:center;justify-content:center;padding:0 3px;">0</span><svg class="icon"><use href="#i-mail"/></svg>Messages</div>
+      <div class="bn-item active" onclick="showScreen('home')"><svg class="icon"><use href="#i-user"/></svg>Profile</div>
+    </div>
+  </div>
+
+  <!-- EMERGENCY -->
+  <div class="screen" id="screen-emergency">
+    <div class="nav-bar" style="background:#c0392b;">← Crisis mode</div>
+    <div class="screen-body" style="background:#fff5f5;">
+      <div style="text-align:center;padding:14px 0 10px;">
+        <div style="font-size:34px;margin-bottom:8px;">🫂</div>
+        <div style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;margin-bottom:6px;">You are not alone</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.7;">This urge will pass. It always does.</div>
+      </div>
+
+      <div class="card" style="border-color:#f3c9c4;">
+        <div class="card-title" style="color:#c0392b;">If you're in danger right now</div>
+        <a href="tel:112" style="text-decoration:none;"><button class="btn" style="background:#c0392b;color:#fff;margin-bottom:8px;"><svg class="icon"><use href="#i-phone"/></svg> 112 — All emergencies</button></a>
+        <a href="tel:912" style="text-decoration:none;"><button class="btn btn-outline" style="border-color:#c0392b;color:#c0392b;"><svg class="icon"><use href="#i-ambulance"/></svg> 912 — SAMU Ambulance</button></a>
+        <div style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5;">Real Rwanda emergency lines. Not a dedicated recovery hotline — we haven't found one yet. If you know of one, tell us.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">While you wait — ground yourself</div>
+        <div style="font-size:12px;color:var(--text);line-height:1.7;">Name <b>5 things</b> you can see, <b>4</b> you can touch, <b>3</b> you can hear, <b>2</b> you can smell, <b>1</b> you can taste. Slowly. Out loud if you can.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Breathe</div>
+        <div id="breathe-circle" style="width:64px;height:64px;border-radius:50%;background:var(--purple-light);border:5px solid var(--purple);margin:6px auto 8px;transition:transform 4s ease-in-out;"></div>
+        <div style="text-align:center;font-size:11px;color:var(--muted);margin-bottom:8px;" id="breathe-label">In for 4, hold for 4, out for 6</div>
+        <button class="btn btn-outline" onclick="startBreathing()"><svg class="icon"><use href="#i-player-play"/></svg> Start</button>
+      </div>
+
+      <button class="btn btn-outline" onclick="showScreen('home')"><svg class="icon"><use href="#i-arrow-left"/></svg> Back to home</button>
+    </div>
+  </div>
+
+  <!-- MENTOR COMPOSE -->
+  <div class="screen" id="screen-mentorCompose">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('home')"><use href="#i-arrow-left"/></svg> New post</div>
+    <div class="screen-body">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div class="avatar" id="mc-avatar" style="width:28px;height:28px;font-size:11px;">EN</div>
+          <span style="font-size:12px;font-weight:600;"><span id="mc-name">Your name</span> <svg class="icon" style="color:var(--purple);font-size:11px;"><use href="#i-rosette-discount-check"/></svg></span>
+        </div>
+        <textarea id="mentorPostText" placeholder="Share a reflection, a win, or something that might help someone today..." style="width:100%;min-height:100px;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:none;"></textarea>
+
+        <input type="file" id="mentorFileInput" accept="image/*,video/*" style="display:none;" onchange="handleMentorFileSelect(event)" />
+        <div id="mentorMediaPreview" style="display:none;position:relative;margin-top:10px;">
+          <img id="mentorMediaImg" style="display:none;width:100%;max-height:220px;object-fit:cover;border-radius:12px;" />
+          <video id="mentorMediaVideo" style="display:none;width:100%;max-height:220px;border-radius:12px;" controls></video>
+          <div onclick="clearMentorMedia()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;">✕</div>
+        </div>
+        <button id="mentorPhotoBtn" onclick="document.getElementById('mentorFileInput').click()" style="width:100%;border:1.5px dashed var(--border);border-radius:12px;padding:16px;margin-top:10px;background:var(--purple-light);color:var(--purple);font-size:12px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;">
+          <svg class="icon" style="font-size:22px;"><use href="#i-photo-plus"/></svg> Add photo or video
+        </button>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;">Only verified mentors can attach photos or video. Tapping this opens your camera, photo library, or files, depending on your device.</div>
+      </div>
+
+      <div class="card" style="border-color:#fde3c8;background:#fffaf3;">
+        <div style="font-size:11px;color:#b8722b;line-height:1.6;"><svg class="icon"><use href="#i-info-circle"/></svg> Rehab, recovery & mental health only. No promotion, no contact info, nothing pro-relapse.</div>
+      </div>
+
+      <button class="btn btn-purple" id="mentorPostBtn" onclick="postMentorContent()"><svg class="icon"><use href="#i-send"/></svg> Post to feed</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('home')"><use href="#i-arrow-left"/></svg> Settings</div>
+    <div class="screen-body">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="card-title" style="margin-bottom:0;">Dark mode</div>
+          <div id="darkModeToggle" onclick="toggleDarkMode()" style="width:42px;height:24px;border-radius:20px;background:#ccc;position:relative;cursor:pointer;transition:background 0.2s;">
+            <div id="darkModeKnob" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:3px;transition:left 0.2s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="card-title" style="margin-bottom:0;">Daily reminders</div>
+          <div id="reminderToggle" onclick="toggleReminders()" style="width:42px;height:24px;border-radius:20px;background:var(--purple);position:relative;cursor:pointer;transition:background 0.2s;">
+            <div id="reminderKnob" style="width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:3px;left:21px;transition:left 0.2s;"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6;">Gentle nudges to help you stay grounded. Never mentions your addiction type by name.</div>
+        <div id="notifPermissionNote" style="display:none;font-size:10.5px;color:#e74c3c;margin-top:8px;line-height:1.6;"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">How often</div>
+        <div style="margin-top:8px;">
+          <button class="option-btn" data-hours="24" onclick="selectFrequency(this)"><svg class="icon"><use href="#i-clock"/></svg>Once a day</button>
+          <button class="option-btn selected" data-hours="12" onclick="selectFrequency(this)"><svg class="icon"><use href="#i-clock"/></svg>Twice a day</button>
+          <button class="option-btn" data-hours="2" onclick="selectFrequency(this)"><svg class="icon"><use href="#i-clock"/></svg>Every 2 hours</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Quiet hours</div>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+          <input type="time" id="quietStartInput" value="22:00" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;outline:none;" />
+          <span style="font-size:11px;color:var(--muted);">to</span>
+          <input type="time" id="quietEndInput" value="07:00" style="flex:1;border:1.5px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12px;outline:none;" />
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">No reminders during these hours.</div>
+      </div>
+
+      <button class="btn btn-purple" onclick="saveReminderSettings()"><svg class="icon"><use href="#i-check"/></svg> Save</button>
+
+      <div class="card" style="cursor:pointer;margin-top:16px;" onclick="confirmLogout()">
+        <div style="display:flex;align-items:center;gap:10px;color:#e74c3c;">
+          <svg class="icon" style="font-size:18px;"><use href="#i-logout"/></svg>
+          <div style="font-weight:600;font-size:13px;">Log out</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PERSONAL COMPOSE -->
+  <div class="screen" id="screen-personalCompose">
+    <div class="nav-bar" style="display:flex;align-items:center;gap:8px;"><svg class="icon" style="cursor:pointer;" onclick="showScreen('feed')"><use href="#i-arrow-left"/></svg> New post</div>
+    <div class="screen-body">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <div class="avatar" id="pc-avatar" style="width:28px;height:28px;font-size:11px;background:#e8f8f0;color:#27ae60;">W2</div>
+          <span style="font-size:12px;font-weight:600;"><span id="pc-name">You</span> <span style="font-size:10px;color:var(--muted);font-weight:400;">(you)</span></span>
+        </div>
+        <textarea id="personalPostText" placeholder="Share a win, a reflection, anything that might help someone today..." style="width:100%;min-height:100px;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;resize:none;"></textarea>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px;">Personal accounts post text only. Photos are mentor-only.</div>
+      </div>
+
+      <div class="card" style="border-color:#fde3c8;background:#fffaf3;">
+        <div style="font-size:11px;color:#b8722b;line-height:1.6;"><svg class="icon"><use href="#i-info-circle"/></svg> Rehab, recovery & mental health only. No promotion, no contact info, nothing pro-relapse.</div>
+      </div>
+
+      <button class="btn btn-purple" onclick="postPersonalContent()"><svg class="icon"><use href="#i-send"/></svg> Post to feed</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST (replaces alert()) -->
+<div id="toast" style="position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a24;color:#fff;font-size:12.5px;padding:12px 18px;border-radius:12px;max-width:320px;text-align:center;line-height:1.5;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:400;opacity:0;pointer-events:none;transition:opacity 0.25s,transform 0.25s;"></div>
+
+<!-- LOGOUT CONFIRM SHEET (replaces confirm()) -->
+<div class="modal-overlay" id="logoutSheet" onclick="if(event.target===this) closeSheet('logoutSheet')">
+  <div class="modal-box" style="text-align:center;">
+    <div class="modal-title">Log out?</div>
+    <div class="modal-sub">You can sign back in anytime with your username and password.</div>
+    <button class="btn btn-purple" style="margin-bottom:8px;" onclick="doLogout()">Log out</button>
+    <button class="btn btn-outline" onclick="closeSheet('logoutSheet')">Cancel</button>
+  </div>
+</div>
+
+<!-- QUOTE COMPOSE MODAL (replaces prompt()) -->
+<div class="modal-overlay" id="quoteModal" onclick="if(event.target===this) closeSheet('quoteModal')">
+  <div class="modal-box">
+    <div class="modal-title" style="text-align:left;">Add a comment</div>
+    <textarea id="quoteTextInput" placeholder="Say something about this..." style="width:100%;min-height:70px;border:1.5px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px;outline:none;font-family:inherit;resize:none;margin-bottom:12px;"></textarea>
+    <button class="btn btn-purple" style="margin-bottom:8px;" onclick="submitQuote()">Post</button>
+    <button class="btn btn-outline" onclick="closeSheet('quoteModal')">Cancel</button>
+  </div>
+</div>
+
+<!-- REPOST / QUOTE SHEET -->
+<div class="modal-overlay" id="repostSheet" onclick="if(event.target===this) closeSheet('repostSheet')">
+  <div class="modal-box">
+    <div class="sheet-item" onclick="confirmRepost()"><svg class="icon"><use href="#i-repeat"/></svg> Repost</div>
+    <div class="sheet-item" onclick="confirmQuote()"><svg class="icon"><use href="#i-quote"/></svg> Quote</div>
+    <div class="sheet-item" style="color:var(--muted);justify-content:center;" onclick="closeSheet('repostSheet')">Cancel</div>
+  </div>
+</div>
+
+<!-- POST OPTIONS SHEET (Not interested / Mute / Block / Report) -->
+<div class="modal-overlay" id="postOptionsSheet" onclick="if(event.target===this) closeSheet('postOptionsSheet')">
+  <div class="modal-box">
+    <div class="sheet-item" onclick="postAction('notinterested')"><svg class="icon"><use href="#i-eye-off"/></svg> Not interested in this post</div>
+    <div class="sheet-item" id="sheetMuteLabel" onclick="postAction('mute')"><svg class="icon"><use href="#i-volume-off"/></svg> Mute</div>
+    <div class="sheet-item danger" id="sheetBlockLabel" onclick="postAction('block')"><svg class="icon"><use href="#i-ban"/></svg> Block</div>
+    <div class="sheet-item danger" onclick="postAction('report')"><svg class="icon"><use href="#i-flag"/></svg> Report post</div>
+    <div class="sheet-item" style="color:var(--muted);justify-content:center;" onclick="closeSheet('postOptionsSheet')">Cancel</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE SETUP — replace the placeholder values below with
+// your real project's config (Firebase Console → Project settings
+// → General → Your apps → SDK setup and configuration → Config).
+// Until you do, the app runs in local DEMO MODE with the
+// hardcoded test accounts below (warrior247 / emmanuel / etc) —
+// nothing is shared between visitors. Once you paste in your
+// real config, real signup/login/posting/gap-tracking switch on
+// automatically, no other code changes needed.
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+const FIREBASE_ENABLED = firebaseConfig.apiKey !== "YOUR_API_KEY_HERE";
+let auth = null, db = null, storage = null;
+if (FIREBASE_ENABLED) {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  storage = firebase.storage();
+}
+function usernameToEmail(username) {
+  return username.toLowerCase().replace(/[^a-z0-9]/g, '') + '@riseapp.local';
+}
+let feedUnsubscribe = null;
+
+const POSTS = {};
+let currentPostAuthorId = null;
+let currentPostId = null;
+function toggleLike(id, el, fromDetail) {
+  const p = POSTS[id];
+  if (!p.likedBy) p.likedBy = [];
+  const alreadyLiked = p.likedBy.includes(currentUserId);
+  p.liked = !alreadyLiked;
+  p.likes += p.liked ? 1 : -1;
+  p.likedBy = p.liked ? [...p.likedBy, currentUserId] : p.likedBy.filter(u => u !== currentUserId);
+  document.querySelectorAll(`.like-btn[data-id="${id}"] .like-count`).forEach(s => s.textContent = p.likes);
+  document.querySelectorAll(`.like-btn[data-id="${id}"]`).forEach(s => s.style.color = p.liked ? 'var(--red)' : 'var(--muted)');
+  if (fromDetail) document.getElementById('pd-likes').textContent = p.likes;
+  el.style.color = p.liked ? 'var(--red)' : 'var(--muted)';
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(id).update({
+      likes: firebase.firestore.FieldValue.increment(p.liked ? 1 : -1),
+      likedBy: p.liked ? firebase.firestore.FieldValue.arrayUnion(currentUserId) : firebase.firestore.FieldValue.arrayRemove(currentUserId)
+    }).catch(() => showToastMsg('Could not save your like — check your connection.'));
+  }
+}
+let extraFeedItems = []; // {type:'post'|'repost', id, byUserId?, time}
+function renderExtraFeed() {
+  const container = document.getElementById('feed-new-posts');
+  if (!container) return;
+  const sorted = [...extraFeedItems].sort((a, b) => b.time - a.time);
+  container.innerHTML = sorted.map(item => {
+    if (item.type === 'repost') {
+      const p = POSTS[item.id];
+      if (!p) return '';
+      const byProf = PROFILES[item.byUserId];
+      const byLabel = item.byUserId === currentUserId ? 'You reposted' : `${byProf.name} reposted`;
+      return `<div class="card"><div style="font-size:10.5px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;gap:5px;"><svg class="icon" style="width:0.9em;height:0.9em;"><use href="#i-repeat"/></svg> ${byLabel}</div><div class="mentor-post" style="border-bottom:none;padding-top:0;"><div class="avatar" style="background:${p.avatarBg};color:${p.avatarColor};cursor:pointer;" onclick="viewProfile('${p.authorId}')">${p.avatar}</div><div style="flex:1;"><div class="mentor-name" style="cursor:pointer;" onclick="viewProfile('${p.authorId}')">${p.author.replace(' (you)','')}</div><div class="mentor-text" style="cursor:pointer;" onclick="viewPost('${item.id}')">${p.text}</div></div></div></div>`;
+    }
+    return POSTS[item.id] ? feedPostCardHTML(item.id) : '';
+  }).join('');
+  updateFeedEmptyState();
+}
+function updateFeedEmptyState() {
+  const emptyEl = document.getElementById('feed-empty-state');
+  if (!emptyEl) return;
+  const isEmpty = BASE_FEED_ORDER.length === 0 && extraFeedItems.length === 0;
+  emptyEl.style.display = isEmpty ? 'block' : 'none';
+}
+function updateRepostUI(id) {
+  const p = POSTS[id];
+  const isRepostedByMe = p.repostedBy.includes(currentUserId);
+  document.querySelectorAll(`.repost-btn[data-id="${id}"] .repost-count`).forEach(s => s.textContent = p.reposts);
+  document.querySelectorAll(`.repost-btn[data-id="${id}"]`).forEach(el => el.style.color = isRepostedByMe ? '#27ae60' : 'var(--muted)');
+  if (currentPostId === id) {
+    document.getElementById('pd-reposts').textContent = p.reposts;
+    document.getElementById('pd-repost-btn').style.color = isRepostedByMe ? '#27ae60' : 'var(--muted)';
+  }
+}
+let repostSheetTarget = null;
+function openRepostSheet(id) {
+  repostSheetTarget = id;
+  document.getElementById('repostSheet').classList.add('show');
+}
+function closeSheet(sheetId) {
+  document.getElementById(sheetId).classList.remove('show');
+}
+function confirmRepost() {
+  const id = repostSheetTarget;
+  closeSheet('repostSheet');
+  const p = POSTS[id];
+  const alreadyReposted = p.repostedBy.includes(currentUserId);
+  if (alreadyReposted) {
+    p.repostedBy = p.repostedBy.filter(u => u !== currentUserId);
+    p.reposts -= 1;
+    extraFeedItems = extraFeedItems.filter(item => !(item.type === 'repost' && item.id === id && item.byUserId === currentUserId));
+  } else {
+    p.repostedBy.push(currentUserId);
+    p.reposts += 1;
+    extraFeedItems.unshift({ type:'repost', id, byUserId: currentUserId, time: Date.now() });
+  }
+  updateRepostUI(id);
+  renderExtraFeed();
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(id).update({
+      reposts: firebase.firestore.FieldValue.increment(alreadyReposted ? -1 : 1),
+      repostedBy: alreadyReposted ? firebase.firestore.FieldValue.arrayRemove(currentUserId) : firebase.firestore.FieldValue.arrayUnion(currentUserId)
+    }).catch(() => showToastMsg('Could not save your repost — check your connection.'));
+  }
+}
+function confirmQuote() {
+  closeSheet('repostSheet');
+  document.getElementById('quoteTextInput').value = '';
+  document.getElementById('quoteModal').classList.add('show');
+}
+function submitQuote() {
+  const quoteText = document.getElementById('quoteTextInput').value.trim();
+  if (!quoteText) return;
+  closeSheet('quoteModal');
+  const originalId = repostSheetTarget;
+  const original = POSTS[originalId];
+  original.reposts += 1;
+  updateRepostUI(originalId);
+  const prof = PROFILES[currentUserId];
+  const cleanQuoteText = quoteText.replace(/</g,'&lt;');
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(originalId).update({
+      reposts: firebase.firestore.FieldValue.increment(1)
+    }).catch(() => showToastMsg('Could not save the repost count — check your connection.'));
+    db.collection('posts').add({
+      authorId: currentUserId, author: prof.name + (prof.mentor ? '' : ' (you)'), avatar: prof.initials,
+      avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: prof.mentor, text: cleanQuoteText,
+      likes:0, likedBy:[], reposts:0, repostedBy:[], comments:[], quotedPostId: originalId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => showToastMsg('Could not post your quote — check your connection.'));
+  }
+  const id = 'p' + Date.now();
+  POSTS[id] = { authorId: currentUserId, author: prof.name + (prof.mentor ? '' : ' (you)'), avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: prof.mentor, text: cleanQuoteText, likes:0, liked:false, reposts:0, repostedBy:[], comments:[], time: Date.now(), quotedPostId: originalId };
+  extraFeedItems.unshift({ type:'post', id, time: POSTS[id].time });
+  renderExtraFeed();
+  renderMyPosts();
+}
+let postOptionsTarget = null;
+function openPostOptions(postId, authorId, authorName) {
+  postOptionsTarget = { postId, authorId, authorName };
+  document.getElementById('sheetBlockLabel').textContent = 'Block @' + authorName;
+  document.getElementById('sheetMuteLabel').textContent = 'Mute @' + authorName;
+  document.getElementById('postOptionsSheet').classList.add('show');
+}
+function postAction(action) {
+  closeSheet('postOptionsSheet');
+  const { authorName } = postOptionsTarget;
+  const messages = {
+    notinterested: "Got it — you'll see less content like this.",
+    mute: `You won't see posts from @${authorName} anymore, but they won't be notified.`,
+    block: `@${authorName} is blocked. They can't view your profile or message you, and you won't see their content.`,
+    report: "Thanks for reporting. Our team will review this post."
+  };
+  showToastMsg(messages[action]);
+}
+function viewPost(id) {
+  currentPostId = id;
+  const p = POSTS[id];
+  currentPostAuthorId = p.authorId;
+  document.getElementById('pd-avatar').textContent = p.avatar;
+  document.getElementById('pd-avatar').style.background = p.avatarBg;
+  document.getElementById('pd-avatar').style.color = p.avatarColor;
+  document.getElementById('pd-name').innerHTML = p.author + (p.mentor ? ' <svg class="icon" style="color:var(--purple);font-size:12px;"><use href="#i-rosette-discount-check"/></svg>' : '');
+  document.getElementById('pd-text').textContent = p.text;
+  document.getElementById('pd-likes').textContent = p.likes;
+  document.getElementById('pd-reposts').textContent = p.reposts;
+  document.getElementById('pd-like-btn').style.color = p.liked ? 'var(--red)' : 'var(--muted)';
+  document.getElementById('pd-repost-btn').style.color = (p.repostedBy || []).includes(currentUserId) ? '#27ae60' : 'var(--muted)';
+  renderComments(p);
+  showScreen('postDetail');
+}
+function renderComments(p) {
+  const commentsDiv = document.getElementById('pd-comments');
+  commentsDiv.innerHTML = p.comments.map((c, i) => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;">
+      <div class="avatar" style="width:26px;height:26px;font-size:10px;background:${c.avatarBg};color:${c.avatarColor};flex-shrink:0;">${c.avatar}</div>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:600;">${c.authorName}</div>
+        <div style="font-size:12px;margin-top:2px;">${c.text}</div>
+        <div style="display:flex;gap:14px;margin-top:6px;">
+          <span style="font-size:10.5px;color:${c.liked ? 'var(--purple)' : 'var(--muted)'};cursor:pointer;display:flex;align-items:center;gap:3px;" onclick="toggleCommentLike(${i}, this)"><svg class="icon" style="width:0.9em;height:0.9em;"><use href="#i-heart"/></svg> ${c.likes}</span>
+          <span style="font-size:10.5px;color:var(--muted);cursor:pointer;" onclick="replyToComment('${c.authorName}')">Reply</span>
+        </div>
+      </div>
+    </div>`).join('');
+  document.getElementById('pd-no-comments').style.display = p.comments.length ? 'none' : 'block';
+}
+function toggleCommentLike(i, el) {
+  const c = POSTS[currentPostId].comments[i];
+  c.liked = !c.liked;
+  c.likes += c.liked ? 1 : -1;
+  renderComments(POSTS[currentPostId]);
+}
+function replyToComment(name) {
+  const input = document.getElementById('pd-comment-input');
+  input.value = `@${name} `;
+  input.focus();
+}
+function addComment() {
+  const input = document.getElementById('pd-comment-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const prof = PROFILES[currentUserId];
+  const comment = { authorName: prof.name + (prof.mentor ? '' : ' (you)'), avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, text: text.replace(/</g,'&lt;'), likes:0, liked:false };
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(currentPostId).update({
+      comments: firebase.firestore.FieldValue.arrayUnion(comment)
+    }).then(() => {
+      POSTS[currentPostId].comments.push(comment);
+      input.value = '';
+      renderComments(POSTS[currentPostId]);
+    }).catch(() => showToastMsg('Could not post your comment — check your connection.'));
+    return;
+  }
+  POSTS[currentPostId].comments.push(comment);
+  input.value = '';
+  renderComments(POSTS[currentPostId]);
+}
+const NOW = Date.now();
+const CONVERSATIONS = {};
+function timeAgo(ts) {
+  const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff/60) + 'm';
+  if (diff < 86400) return Math.floor(diff/3600) + 'h';
+  return Math.floor(diff/86400) + 'd';
+}
+function renderMessagesList() {
+  const container = document.getElementById('messagesList');
+  if (!container) return;
+  const sorted = Object.entries(CONVERSATIONS).sort((a,b) => {
+    const lastA = a[1].messages[a[1].messages.length-1].time;
+    const lastB = b[1].messages[b[1].messages.length-1].time;
+    return lastB - lastA;
+  });
+  container.innerHTML = sorted.map(([id, c]) => {
+    const last = c.messages[c.messages.length-1];
+    const preview = (last.from === 'me' ? 'You: ' : '') + last.text;
+    const unread = c.unread > 0;
+    return `<div class="card" style="cursor:pointer;" onclick="openChat('${id}')">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar" style="${c.avatarBg || ''}">${c.avatar}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:4px;">${c.name} <svg class="icon" style="color:var(--purple);font-size:11px;"><use href="#i-rosette-discount-check"/></svg></div>
+          <div style="font-size:11px;color:${unread ? 'var(--text)' : 'var(--muted)'};font-weight:${unread ? '600' : '400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div style="font-size:10px;color:var(--muted);">${timeAgo(last.time)}</div>
+          ${unread ? `<div style="width:8px;height:8px;background:var(--purple);border-radius:50%;"></div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function updateMsgBadge() {
+  const total = Object.values(CONVERSATIONS).reduce((sum, c) => sum + c.unread, 0);
+  document.querySelectorAll('.msg-badge').forEach(el => {
+    el.style.display = total > 0 ? 'flex' : 'none';
+    el.textContent = total > 9 ? '9+' : total;
+  });
+}
+let currentChatId = 'en';
+function openChat(id) {
+  currentChatId = id;
+  CONVERSATIONS[id].unread = 0;
+  const c = CONVERSATIONS[id];
+  document.getElementById('chat-avatar').textContent = c.avatar;
+  document.getElementById('chat-avatar').removeAttribute('style');
+  document.getElementById('chat-avatar').setAttribute('style', 'width:26px;height:26px;font-size:10px;' + (c.avatarBg || ''));
+  document.getElementById('chat-name').innerHTML = c.name + ' <svg class="icon" style="font-size:11px;"><use href="#i-rosette-discount-check"/></svg>';
+  renderChatMessages(c);
+  updateMsgBadge();
+  renderMessagesList();
+  showScreen('chat');
+}
+function renderChatMessages(c) {
+  const box = document.getElementById('chat-messages');
+  box.innerHTML = c.messages.map((m, i) => {
+    const isLast = i === c.messages.length - 1;
+    const seenLabel = (m.from === 'me' && isLast) ? `<div style="font-size:9.5px;color:var(--muted);text-align:right;margin-top:2px;">${m.seen ? 'Seen' : 'Sent · ' + timeAgo(m.time)}</div>` : '';
+    return `<div>${m.from === 'me' ? '<div class="bubble-out">'+m.text+'</div>' : '<div class="bubble-in">'+m.text+'</div>'}${seenLabel}</div>`;
+  }).join('');
+  box.scrollTop = box.scrollHeight;
+}
+function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const convo = CONVERSATIONS[currentChatId];
+  convo.messages.push({from:'me', text, time: Date.now(), seen:false});
+  renderChatMessages(convo);
+  input.value = '';
+  renderMessagesList();
+  setTimeout(() => {
+    const last = convo.messages[convo.messages.length-1];
+    if (last.from === 'me') { last.seen = true; renderChatMessages(convo); }
+  }, 1800);
+}
+function toggleDarkMode() {
+  document.body.classList.toggle('dark');
+  const isDark = document.body.classList.contains('dark');
+  document.getElementById('darkModeToggle').style.background = isDark ? 'var(--purple)' : '#ccc';
+  document.getElementById('darkModeKnob').style.left = isDark ? '21px' : '3px';
+}
+let remindersOn = true;
+let reminderFrequencyHours = 12;
+let quietStart = '22:00';
+let quietEnd = '07:00';
+let lastReminderTime = Date.now();
+function toggleReminders() {
+  remindersOn = !remindersOn;
+  document.getElementById('reminderToggle').style.background = remindersOn ? 'var(--purple)' : '#ccc';
+  document.getElementById('reminderKnob').style.left = remindersOn ? '21px' : '3px';
+}
+function selectFrequency(el) {
+  el.parentElement.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+function applyReminderSettingsToUI() {
+  document.getElementById('reminderToggle').style.background = remindersOn ? 'var(--purple)' : '#ccc';
+  document.getElementById('reminderKnob').style.left = remindersOn ? '21px' : '3px';
+  document.querySelectorAll('#screen-settings .option-btn').forEach(b => {
+    b.classList.toggle('selected', parseInt(b.dataset.hours, 10) === reminderFrequencyHours);
+  });
+  document.getElementById('quietStartInput').value = quietStart;
+  document.getElementById('quietEndInput').value = quietEnd;
+}
+function isInQuietHours(start, end, date) {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMin = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  const nowMin = date.getHours() * 60 + date.getMinutes();
+  if (startMin === endMin) return false;
+  if (startMin < endMin) return nowMin >= startMin && nowMin < endMin;
+  return nowMin >= startMin || nowMin < endMin;
+}
+function checkReminders() {
+  if (!remindersOn || !currentUserId) return;
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const now = new Date();
+  if (isInQuietHours(quietStart, quietEnd, now)) return;
+  const elapsedHours = (Date.now() - lastReminderTime) / 3600000;
+  if (elapsedHours >= reminderFrequencyHours) {
+    new Notification('RISE', { body: 'Just checking in — how are you doing today?' });
+    lastReminderTime = Date.now();
+    if (FIREBASE_ENABLED && currentUserId) {
+      db.collection('users').doc(currentUserId).update({ lastReminderTime }).catch(() => {});
+    }
+  }
+}
+setInterval(checkReminders, 60000);
+function saveReminderSettings() {
+  const selectedBtn = document.querySelector('#screen-settings .option-btn.selected');
+  reminderFrequencyHours = selectedBtn ? parseInt(selectedBtn.dataset.hours, 10) : 12;
+  quietStart = document.getElementById('quietStartInput').value || '22:00';
+  quietEnd = document.getElementById('quietEndInput').value || '07:00';
+  const noteEl = document.getElementById('notifPermissionNote');
+  noteEl.style.display = 'none';
+
+  const persistAndReturn = () => {
+    if (FIREBASE_ENABLED && currentUserId) {
+      db.collection('users').doc(currentUserId).update({
+        remindersOn, reminderFrequencyHours, quietStart, quietEnd
+      }).catch(() => showToastMsg('Settings saved locally, but could not sync — check your connection.'));
+    }
+    showToastMsg('Reminder settings saved.');
+    showScreen('home');
+  };
+
+  if (remindersOn && typeof Notification !== 'undefined') {
+    if (Notification.permission === 'granted') {
+      persistAndReturn();
+    } else if (Notification.permission === 'denied') {
+      noteEl.textContent = 'Notifications are blocked in your browser settings — reminders won\'t show until you allow them.';
+      noteEl.style.display = 'block';
+      persistAndReturn();
+    } else {
+      Notification.requestPermission().then(permission => {
+        if (permission !== 'granted') {
+          noteEl.textContent = 'Notifications weren\'t allowed — reminders are saved but won\'t show until you allow them.';
+          noteEl.style.display = 'block';
+        }
+        persistAndReturn();
+      });
+    }
+  } else {
+    persistAndReturn();
+  }
+}
+function approveMentor() {
+  showScreen('mentorApproved');
+}
+function feedPostCardHTML(id) {
+  const p = POSTS[id];
+  let photoBlock = '';
+  if (p.mediaUrl) {
+    photoBlock = p.mediaType === 'video'
+      ? `<video src="${p.mediaUrl}" controls style="width:100%;max-height:220px;border-radius:12px;margin-top:8px;"></video>`
+      : `<img src="${p.mediaUrl}" style="width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:8px;cursor:pointer;" onclick="viewPost('${id}')" />`;
+  } else if (p.photo) {
+    photoBlock = `<div style="width:100%;height:110px;background:linear-gradient(135deg,#e0f2ff,#d5e8ff);border-radius:12px;margin-top:8px;display:flex;align-items:center;justify-content:center;color:#7a9cc6;font-size:11px;cursor:pointer;" onclick="viewPost('${id}')"><svg class="icon" style="font-size:22px;margin-right:6px;"><use href="#i-photo"/></svg>photo</div>`;
+  }
+  const messageBtn = (p.mentor && p.authorId !== currentUserId) ? `<button style="margin-left:auto;background:var(--purple);color:#fff;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;" onclick="openChat('${p.authorId}')"><svg class="icon"><use href="#i-message-2"/></svg> Message</button>` : '';
+  const badge = p.mentor ? ' <svg class="icon" style="color:var(--purple);font-size:13px;"><use href="#i-rosette-discount-check"/></svg>' : '';
+  let tag;
+  if (p.authorId === currentUserId) {
+    tag = ` <span class="mentor-tag">(you) · ${timeAgo(p.time || Date.now())}</span>`;
+  } else if (p.mentor) {
+    tag = ` <span class="mentor-tag">· Mentor · <span class="fc-${p.authorId}">${PROFILES[p.authorId] ? PROFILES[p.authorId].followers : 0}</span> followers</span>`;
+  } else {
+    tag = '';
+  }
+  let quotedBlock = '';
+  if (p.quotedPostId && POSTS[p.quotedPostId]) {
+    const q = POSTS[p.quotedPostId];
+    quotedBlock = `<div style="border:1px solid var(--border);border-radius:12px;padding:10px;margin-top:8px;display:flex;gap:8px;cursor:pointer;" onclick="viewPost('${p.quotedPostId}')">
+      <div class="avatar" style="width:26px;height:26px;font-size:10px;background:${q.avatarBg};color:${q.avatarColor};flex-shrink:0;">${q.avatar}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:600;">${q.author.replace(' (you)','')}</div>
+        <div style="font-size:11.5px;color:var(--muted);">${q.text}</div>
+      </div>
+    </div>`;
+  }
+  return `<div class="card">
+    <div class="mentor-post" style="border-bottom:none;padding-top:0;">
+      <div class="avatar" style="background:${p.avatarBg};color:${p.avatarColor};cursor:pointer;" onclick="viewProfile('${p.authorId}')">${p.avatar}</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px;">
+          <div class="mentor-name" style="cursor:pointer;" onclick="viewProfile('${p.authorId}')">${p.author.replace(' (you)','')}${badge}${tag}</div>
+          <span class="post-more" onclick="openPostOptions('${id}','${p.authorId}','${p.author}')"><svg class="icon"><use href="#i-dots"/></svg></span>
+        </div>
+        <div class="mentor-text" style="cursor:pointer;" onclick="viewPost('${id}')">${p.text}</div>
+        ${photoBlock}
+        ${quotedBlock}
+        <div style="display:flex;gap:12px;margin-top:8px;align-items:center;">
+          <span class="like-btn" data-id="${id}" style="font-size:11px;color:${p.liked ? 'var(--red)' : 'var(--muted)'};cursor:pointer;" onclick="toggleLike('${id}', this)"><svg class="icon"><use href="#i-heart"/></svg> <span class="like-count">${p.likes}</span></span>
+          <span style="font-size:11px;color:var(--muted);cursor:pointer;" onclick="viewPost('${id}')"><svg class="icon"><use href="#i-message-circle"/></svg> ${p.comments.length}</span>
+          <span class="repost-btn" data-id="${id}" style="font-size:11px;color:var(--muted);cursor:pointer;" onclick="openRepostSheet('${id}')"><svg class="icon"><use href="#i-repeat"/></svg> <span class="repost-count">${p.reposts}</span></span>
+          ${messageBtn}
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+const BASE_FEED_ORDER = [];
+function renderBaseFeed() {
+  const container = document.getElementById('feed-base-posts');
+  if (!container) return;
+  container.innerHTML = BASE_FEED_ORDER.map(id => feedPostCardHTML(id)).join('');
+}
+function renderMyPosts() {
+  if (!currentUserId) return;
+  const myPosts = Object.keys(POSTS).filter(id => POSTS[id].authorId === currentUserId).map(id => [id, POSTS[id]]).sort((a, b) => (b[1].time || 0) - (a[1].time || 0));
+  const isMentor = PROFILES[currentUserId].mentor;
+  const containerId = isMentor ? 'mentor-own-posts' : 'own-posts-list';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = myPosts.map(([id, p], i) => {
+    const isLast = i === myPosts.length - 1;
+    return `<div class="mentor-post" style="border-bottom:${isMentor ? (isLast ? 'none' : '1px solid var(--border)') : 'none'};padding-top:${i === 0 ? '0' : '10px'};cursor:pointer;" onclick="viewPost('${id}')">
+      <div style="flex:1;">
+        <div class="mentor-text">${p.text}</div>
+        <div class="mentor-time">${timeAgo(p.time || Date.now())} · ${p.likes} <svg class="icon" style="width:0.85em;height:0.85em;"><use href="#i-heart"/></svg> · ${p.comments.length} <svg class="icon" style="width:0.85em;height:0.85em;"><use href="#i-message-circle"/></svg></div>
+      </div>
+    </div>`;
+  }).join('');
+  if (isMentor) {
+    document.getElementById('mv-posts').textContent = myPosts.length;
+  } else {
+    document.querySelectorAll('.own-post-count').forEach(el => el.textContent = myPosts.length);
+  }
+}
+function postPersonalContent() {
+  const text = document.getElementById('personalPostText').value.trim();
+  if (!text) { showToastMsg('Write something first.'); return; }
+  const prof = PROFILES[currentUserId];
+  const cleanText = text.replace(/</g,'&lt;');
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').add({
+      authorId: currentUserId, author: prof.name + ' (you)', avatar: prof.initials,
+      avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor:false, text: cleanText,
+      likes:0, reposts:0, repostedBy:[], comments:[],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      document.getElementById('personalPostText').value = '';
+      showScreen('feed');
+    }).catch(() => showToastMsg('Could not post — check your connection and try again.'));
+    return;
+  }
+  const id = 'p' + Date.now();
+  POSTS[id] = { authorId: currentUserId, author: prof.name + ' (you)', avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor:false, text: cleanText, likes:0, liked:false, reposts:0, repostedBy:[], comments:[], time: Date.now() };
+  extraFeedItems.unshift({ type:'post', id, time: POSTS[id].time });
+  renderExtraFeed();
+  renderMyPosts();
+  document.getElementById('personalPostText').value = '';
+  showScreen('feed');
+}
+let mentorAttachedMedia = null; // { url, type: 'image'|'video', file }
+function handleMentorFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  const type = file.type.startsWith('video') ? 'video' : 'image';
+  mentorAttachedMedia = { url, type, file };
+  document.getElementById('mentorMediaPreview').style.display = 'block';
+  document.getElementById('mentorMediaImg').style.display = type === 'image' ? 'block' : 'none';
+  document.getElementById('mentorMediaVideo').style.display = type === 'video' ? 'block' : 'none';
+  if (type === 'image') {
+    document.getElementById('mentorMediaImg').src = url;
+  } else {
+    document.getElementById('mentorMediaVideo').src = url;
+  }
+  document.getElementById('mentorPhotoBtn').style.display = 'none';
+}
+function clearMentorMedia() {
+  mentorAttachedMedia = null;
+  document.getElementById('mentorMediaPreview').style.display = 'none';
+  document.getElementById('mentorPhotoBtn').style.display = 'flex';
+  document.getElementById('mentorFileInput').value = '';
+}
+function postMentorContent() {
+  const input = document.getElementById('mentorPostText');
+  const text = input.value.trim();
+  if (!text) { showToastMsg('Write something first.'); return; }
+  const prof = PROFILES[currentUserId];
+  const cleanText = text.replace(/</g,'&lt;');
+  const btn = document.getElementById('mentorPostBtn');
+  if (FIREBASE_ENABLED) {
+    const postData = {
+      authorId: currentUserId, author: prof.name, avatar: prof.initials,
+      avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor:true, text: cleanText,
+      likes:0, likedBy:[], reposts:0, repostedBy:[], comments:[],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const finishPost = () => {
+      db.collection('posts').add(postData).then(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+        input.value = '';
+        clearMentorMedia();
+        showToastMsg("Posted. It's live at the top of the Home feed and on your profile.");
+        showScreen('home');
+        setProfileType('mentor');
+      }).catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+        showToastMsg('Could not post — check your connection and try again.');
+      });
+    };
+    btn.disabled = true;
+    if (mentorAttachedMedia && mentorAttachedMedia.file) {
+      btn.textContent = 'Uploading media...';
+      const filePath = `posts/${currentUserId}/${Date.now()}_${mentorAttachedMedia.file.name}`;
+      storage.ref(filePath).put(mentorAttachedMedia.file)
+        .then(snapshot => snapshot.ref.getDownloadURL())
+        .then(url => {
+          postData.mediaUrl = url;
+          postData.mediaType = mentorAttachedMedia.type;
+          btn.textContent = 'Posting...';
+          finishPost();
+        })
+        .catch(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+          showToastMsg('Could not upload your media — check your connection and try again.');
+        });
+    } else {
+      btn.textContent = 'Posting...';
+      finishPost();
+    }
+    return;
+  }
+  const id = 'p' + Date.now();
+  POSTS[id] = { authorId: currentUserId, author: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor:true, text: cleanText, likes:0, liked:false, reposts:0, repostedBy:[], comments:[], time: Date.now() };
+  if (mentorAttachedMedia) {
+    POSTS[id].mediaUrl = mentorAttachedMedia.url;
+    POSTS[id].mediaType = mentorAttachedMedia.type;
+  }
+  extraFeedItems.unshift({ type:'post', id, time: POSTS[id].time });
+  renderExtraFeed();
+  renderMyPosts();
+  input.value = '';
+  clearMentorMedia();
+  showToastMsg("Posted. It's live at the top of the Home feed and on your profile.");
+  showScreen('home');
+  setProfileType('mentor');
+}
+let currentAccountType = 'personal';
+function setProfileType(type) {
+  currentAccountType = type;
+  const isMentor = type === 'mentor';
+  document.getElementById('profile-personal-view').style.display = isMentor ? 'none' : 'block';
+  document.getElementById('profile-mentor-view').style.display = isMentor ? 'block' : 'none';
+}
+function openCompose() {
+  const p = PROFILES[currentUserId];
+  if (currentAccountType === 'mentor') {
+    document.getElementById('mc-avatar').textContent = p.initials;
+    document.getElementById('mc-avatar').style.background = p.avatarBg;
+    document.getElementById('mc-avatar').style.color = p.avatarColor;
+    document.getElementById('mc-name').textContent = p.name;
+    showScreen('mentorCompose');
+  } else {
+    document.getElementById('pc-avatar').textContent = p.initials;
+    document.getElementById('pc-avatar').style.background = p.avatarBg;
+    document.getElementById('pc-avatar').style.color = p.avatarColor;
+    document.getElementById('pc-name').textContent = p.name;
+    showScreen('personalCompose');
+  }
+}
+let currentUserId = null;
+const PROFILES = {};
+function followLabel(p, forButton) {
+  if (p.followed) return forButton ? '<svg class="icon"><use href="#i-user-check"/></svg> Following' : '✓ Following';
+  if (p.followsYou) return forButton ? '<svg class="icon"><use href="#i-user-plus"/></svg> Follow back' : '+ Follow back';
+  return forButton ? '<svg class="icon"><use href="#i-user-plus"/></svg> Follow' : '+ Follow';
+}
+let currentViewedProfile = null;
+function viewProfile(id) {
+  if (id === currentUserId) { showScreen('home'); return; }
+  currentViewedProfile = id;
+  followListBackTarget = 'viewProfile';
+  const p = PROFILES[id];
+  document.getElementById('vp-avatar').textContent = p.initials;
+  document.getElementById('vp-avatar').style.background = p.avatarBg || '#f0e6ff';
+  document.getElementById('vp-avatar').style.color = p.avatarColor || 'var(--purple)';
+  document.getElementById('vp-name').textContent = p.name;
+  document.getElementById('vp-badge').style.display = p.mentor ? 'inline' : 'none';
+  document.getElementById('vp-subtitle').textContent = p.subtitle;
+  document.getElementById('vp-bio').style.display = p.bio ? 'block' : 'none';
+  document.getElementById('vp-bio').textContent = p.bio;
+  document.getElementById('vp-posts').textContent = p.posts;
+  document.getElementById('vp-followers').textContent = p.followers;
+  document.getElementById('vp-following').textContent = p.following;
+  document.getElementById('vp-gap').textContent = p.gap;
+  document.getElementById('vp-gap-wrap').style.display = p.mentor ? 'none' : 'block';
+  document.getElementById('vp-message-btn').style.display = p.mentor ? 'flex' : 'none';
+  const followBtn = document.getElementById('vp-follow-btn');
+  followBtn.innerHTML = followLabel(p, true);
+  followBtn.classList.toggle('btn-purple', p.followed);
+  followBtn.classList.toggle('btn-outline', !p.followed);
+  const list = document.getElementById('vp-posts-list');
+  list.innerHTML = p.postsList.map(post => `<div class="mentor-post" style="border-bottom:1px solid var(--border);padding-top:0;"><div style="flex:1;"><div class="mentor-text">${post.text}</div><div class="mentor-time">${post.meta}</div></div></div>`).join('');
+  showScreen('viewProfile');
+}
+function toggleFollow(id, btnEl) {
+  const p = PROFILES[id];
+  p.followed = !p.followed;
+  p.followers += p.followed ? 1 : -1;
+  document.querySelectorAll('.fc-' + id).forEach(el => el.textContent = p.followers);
+  if (btnEl.classList.contains('follow-btn')) {
+    btnEl.textContent = followLabel(p, false);
+  } else {
+    btnEl.innerHTML = followLabel(p, true);
+    btnEl.classList.toggle('btn-purple', p.followed);
+    btnEl.classList.toggle('btn-outline', !p.followed);
+  }
+  if (currentViewedProfile === id) {
+    document.getElementById('vp-followers').textContent = p.followers;
+  }
+}
+function initFollowLabels() {
+  document.querySelectorAll('.follow-btn').forEach(el => {
+    const id = el.dataset.id;
+    if (PROFILES[id]) el.textContent = followLabel(PROFILES[id], false);
+  });
+}
+let followListBackTarget = 'viewProfile';
+function viewOwnFollowList(type, id) {
+  currentViewedProfile = id || currentUserId;
+  followListBackTarget = 'home';
+  showFollowList(type);
+}
+function showFollowList(type) {
+  const p = PROFILES[currentViewedProfile];
+  if (type === 'posts') { return; }
+  const names = type === 'followers' ? p.followersList : p.followingList;
+  document.getElementById('followListTitle').textContent = (type === 'followers' ? 'Followers' : 'Following') + ' · ' + p.name;
+  document.getElementById('followListItems').innerHTML = names.map(n => `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;"><div class="avatar" style="width:32px;height:32px;font-size:11px;">${n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div><div style="font-size:12.5px;font-weight:500;">${n}</div></div>`).join('');
+  showScreen('followList');
+}
+function filterMentors() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const results = document.querySelectorAll('.mentor-result');
+  let anyVisible = false;
+  results.forEach(r => {
+    const match = r.dataset.name.includes(q);
+    r.style.display = match ? 'block' : 'none';
+    if (match) anyVisible = true;
+  });
+  document.getElementById('searchEmptyState').style.display = q ? 'none' : 'block';
+  document.getElementById('noMentorResult').style.display = (q && !anyVisible) ? 'block' : 'none';
+}
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+let selectedAddictionValue = 'Alcohol';
+function selectAddiction(el) {
+  document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAddictionValue = el.textContent.trim();
+  const otherInput = document.getElementById('otherInput');
+  otherInput.style.display = selectedAddictionValue === 'Other' ? 'block' : 'none';
+}
+let pendingSignupUsername = '';
+let pendingSignupPassword = '';
+function goToAddictionStep() {
+  const u = document.getElementById('suUsername').value.trim();
+  const pw = document.getElementById('suPassword').value.trim();
+  const errEl = document.getElementById('suError');
+  if (!u || pw.length < 6) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  pendingSignupUsername = u;
+  pendingSignupPassword = pw;
+  showScreen('signupAddiction');
+}
+function completeSignup() {
+  const addiction = selectedAddictionValue === 'Other' ? (document.getElementById('otherInput').value.trim() || 'Other') : selectedAddictionValue;
+  const btn = document.getElementById('completeSignupBtn');
+  const errEl = document.getElementById('signupError');
+  errEl.style.display = 'none';
+  if (!FIREBASE_ENABLED) {
+    showToastMsg('Demo mode — connect Firebase to enable real sign-ups. Log in with a demo account instead.');
+    showScreen('login');
+    return;
+  }
+  btn.textContent = 'Creating your account...';
+  const email = usernameToEmail(pendingSignupUsername);
+  auth.createUserWithEmailAndPassword(email, pendingSignupPassword)
+    .then(cred => {
+      const uid = cred.user.uid;
+      const initials = pendingSignupUsername.slice(0, 2).toUpperCase();
+      const colors = [['#e8f8f0','#27ae60'], ['#fef0f0','#c0392b'], ['#e0f0ff','#2980b9'], ['#fff4e0','#e67e22']];
+      const [avatarBg, avatarColor] = colors[Math.floor(Math.random() * colors.length)];
+      const userData = {
+        username: pendingSignupUsername, mentor:false, addiction,
+        initials, avatarBg, avatarColor, followers:0, following:0,
+        runStartTime: Date.now(), runsHistory: [0],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      return db.collection('users').doc(uid).set(userData).then(() => injectFirestoreProfile(uid, userData));
+    })
+    .then(uid => {
+      setCurrentUser(uid);
+      showScreen('feed');
+    })
+    .catch(err => {
+      errEl.textContent = err.code === 'auth/email-already-in-use' ? 'That username is already taken.' : err.message;
+      errEl.style.display = 'block';
+      btn.textContent = 'Start day one';
+    });
+}
+function injectFirestoreProfile(uid, d) {
+  PROFILES[uid] = {
+    name: d.username, initials: d.initials, avatarBg: d.avatarBg, avatarColor: d.avatarColor,
+    mentor: !!d.mentor, followsYou:false, subtitle: d.mentor ? 'Verified mentor · Real identity on file' : 'Personal account · Anonymous',
+    bio: d.bio || '', posts: 0, followers: d.followers || 0, following: d.following || 0, followed:false, gap:'0d', postsList:[], followersList:[], followingList:[]
+  };
+  PERSONAL_STATE[uid] = { runsHistory: d.runsHistory || [0], runStartTime: d.runStartTime || Date.now() };
+  remindersOn = d.remindersOn !== undefined ? d.remindersOn : true;
+  reminderFrequencyHours = d.reminderFrequencyHours || 12;
+  quietStart = d.quietStart || '22:00';
+  quietEnd = d.quietEnd || '07:00';
+  lastReminderTime = d.lastReminderTime || Date.now();
+  applyReminderSettingsToUI();
+  return uid;
+}
+const PERSONAL_STATE = {};
+function getCurrentStreakDays(id) {
+  const s = PERSONAL_STATE[id];
+  if (!s) return 0;
+  return Math.floor((Date.now() - s.runStartTime) / 86400000);
+}
+const LEADERBOARD_EXTRAS = [];
+function renderLeaderboard() {
+  const container = document.getElementById('leaderboard-list');
+  if (!container || !currentUserId) return;
+  const entries = Object.keys(PERSONAL_STATE).map(id => {
+    const prof = PROFILES[id];
+    return { name: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, gap: getCurrentStreakDays(id), isYou: id === currentUserId };
+  }).concat(LEADERBOARD_EXTRAS.map(e => ({...e, isYou:false})));
+  entries.sort((a, b) => b.gap - a.gap);
+  container.innerHTML = entries.map((e, i) => {
+    const rank = i + 1;
+    const rankColor = e.isYou ? 'var(--purple)' : rank === 1 ? '#f1c40f' : rank === 2 ? '#bdc3c7' : rank === 3 ? '#cd7f32' : 'var(--muted)';
+    const rowStyle = e.isYou ? 'background:var(--purple-light);border-radius:10px;margin:4px -4px -4px;padding-left:8px;' : 'border-bottom:1px solid var(--border);';
+    return `<div class="lb-row" style="display:flex;align-items:center;gap:10px;padding:8px 0;${rowStyle}">
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;color:${rankColor};width:18px;">${rank}</div>
+      <div class="avatar" style="width:30px;height:30px;font-size:11px;background:${e.avatarBg};color:${e.avatarColor};">${e.avatar}</div>
+      <div style="flex:1;font-size:12.5px;font-weight:500;${e.isYou ? 'color:var(--purple);' : ''}">${e.name}${e.isYou ? ' <span style="font-size:10px;">(you)</span>' : ''}</div>
+      <div style="font-family:'Space Grotesk',sans-serif;font-size:12.5px;font-weight:600;color:var(--purple);">${e.gap}d</div>
+    </div>`;
+  }).join('');
+}
+function renderGapChart() {
+  if (!currentUserId || PROFILES[currentUserId].mentor) return;
+  const state = PERSONAL_STATE[currentUserId];
+  const current = getCurrentStreakDays(currentUserId);
+  const bars = [...state.runsHistory, current];
+  const max = Math.max(...bars, 1);
+  const chart = document.getElementById('gap-chart');
+  chart.innerHTML = bars.map((v, i) => {
+    const isLast = i === bars.length - 1;
+    const heightPct = Math.max((v / max) * 100, 6);
+    return `<div style="flex:1;background:${isLast ? 'var(--purple)' : 'var(--purple-light)'};border-radius:4px 4px 0 0;height:${heightPct}%;position:relative;"><span style="position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:9px;color:${isLast ? 'var(--purple)' : 'var(--muted)'};font-weight:${isLast ? '600' : '400'};">${isLast ? 'now' : v + 'd'}</span></div>`;
+  }).join('');
+  document.getElementById('streak-num-val').textContent = current;
+  renderLeaderboard();
+}
+function logSlip() {
+  const state = PERSONAL_STATE[currentUserId];
+  const endedRun = getCurrentStreakDays(currentUserId);
+  state.runsHistory.push(endedRun);
+  state.runStartTime = Date.now();
+  renderGapChart();
+  if (FIREBASE_ENABLED) {
+    db.collection('users').doc(currentUserId).update({
+      runsHistory: state.runsHistory,
+      runStartTime: state.runStartTime
+    }).catch(() => showToastMsg('Logged locally, but could not save to your account — check your connection.'));
+  }
+  showToastMsg(`Logged. That run held for ${endedRun} day${endedRun === 1 ? '' : 's'} — it stays on your chart. A new run starts now at day 0. Every day you don't log a slip, this number climbs on its own.`);
+}
+setInterval(() => {
+  if (currentUserId && !PROFILES[currentUserId].mentor) renderGapChart();
+}, 60000);
+function showToastMsg(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.transform = 'translateX(-50%) translateY(0)';
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2800);
+}
+function confirmLogout() {
+  document.getElementById('logoutSheet').classList.add('show');
+}
+function attemptLogin() {
+  const u = document.getElementById('loginUsername').value.trim().toLowerCase();
+  const pw = document.getElementById('loginPassword').value.trim();
+  const errEl = document.getElementById('loginError');
+  if (!u || !pw) {
+    errEl.textContent = 'Enter both a username and password.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  if (!FIREBASE_ENABLED) {
+    errEl.textContent = 'RISE isn\'t connected to a live account system yet. Paste your Firebase config into the code to enable real login.';
+    errEl.style.display = 'block';
+    return;
+  }
+  auth.signInWithEmailAndPassword(usernameToEmail(u), pw)
+    .then(cred => db.collection('users').doc(cred.user.uid).get().then(doc => {
+      if (!doc.exists) throw new Error('No profile found for this account.');
+      injectFirestoreProfile(cred.user.uid, doc.data());
+      setCurrentUser(cred.user.uid);
+      showScreen('feed');
+    }))
+    .catch(err => {
+      errEl.textContent = 'Incorrect username or password.';
+      errEl.style.display = 'block';
+    });
+}
+function listenToLiveFeed() {
+  if (!FIREBASE_ENABLED) return;
+  if (feedUnsubscribe) feedUnsubscribe();
+  feedUnsubscribe = db.collection('posts').orderBy('createdAt', 'desc').limit(50).onSnapshot(snapshot => {
+    extraFeedItems = [];
+    snapshot.forEach(doc => {
+      const d = doc.data();
+      const id = doc.id;
+      const likedBy = d.likedBy || [];
+      POSTS[id] = {
+        authorId: d.authorId, author: d.author, avatar: d.avatar, avatarBg: d.avatarBg, avatarColor: d.avatarColor,
+        mentor: d.mentor, text: d.text, likes: d.likes || 0, liked: likedBy.includes(currentUserId), likedBy,
+        reposts: d.reposts || 0, repostedBy: d.repostedBy || [], comments: d.comments || [],
+        time: d.createdAt ? d.createdAt.toMillis() : Date.now(),
+        mediaUrl: d.mediaUrl || null, mediaType: d.mediaType || null, quotedPostId: d.quotedPostId || null
+      };
+      extraFeedItems.push({ type:'post', id, time: POSTS[id].time });
+    });
+    renderExtraFeed();
+    renderMyPosts();
+  });
+}
+function setCurrentUser(id) {
+  currentUserId = id;
+  const p = PROFILES[id];
+  currentAccountType = p.mentor ? 'mentor' : 'personal';
+  setProfileType(currentAccountType);
+  if (p.mentor) {
+    document.getElementById('mv-avatar').textContent = p.initials;
+    document.getElementById('mv-avatar').style.background = p.avatarBg;
+    document.getElementById('mv-avatar').style.color = p.avatarColor;
+    document.getElementById('mv-name').textContent = p.name;
+    document.getElementById('mv-subtitle').textContent = p.subtitle;
+    document.getElementById('mv-bio').textContent = p.bio;
+    document.getElementById('mv-followers').textContent = p.followers;
+    document.getElementById('mv-following').textContent = p.following;
+    if (!PERSONAL_STATE[id]) {
+      // mentors don't track gaps, nothing to seed
+    }
+  } else {
+    if (!PERSONAL_STATE[id]) {
+      PERSONAL_STATE[id] = { runsHistory: [0], runStartTime: Date.now() };
+    }
+  }
+  renderMyPosts();
+  if (!p.mentor) renderGapChart();
+  renderBaseFeed();
+  if (FIREBASE_ENABLED) {
+    listenToLiveFeed();
+  } else {
+    renderExtraFeed();
+  }
+}
+function doLogout() {
+  closeSheet('logoutSheet');
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  currentUserId = null;
+  if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
+  if (FIREBASE_ENABLED && auth.currentUser) auth.signOut();
+  showScreen('login');
+}
+let breathingActive = false;
+function startBreathing() {
+  if (breathingActive) return;
+  breathingActive = true;
+  const circle = document.getElementById('breathe-circle');
+  const label = document.getElementById('breathe-label');
+  const phases = ['Breathe in...', 'Hold...', 'Breathe out...'];
+  const scales = ['scale(1.4)', 'scale(1.4)', 'scale(1)'];
+  const times = [4000, 4000, 6000];
+  let phase = 0;
+  function next() {
+    circle.style.transform = scales[phase];
+    label.textContent = phases[phase];
+    phase = (phase + 1) % 3;
+    setTimeout(next, times[phase]);
+  }
+  next();
+}
+initFollowLabels();
+renderMessagesList();
+updateMsgBadge();
+</script>
+</body>
+</html>
