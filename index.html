@@ -1634,7 +1634,7 @@ function viewProfile(id) {
   if (!PROFILES[id]) {
     if (!FIREBASE_ENABLED) { showToastMsg('Could not find that account.'); return; }
     showToastMsg('Loading profile...');
-    db.collection('users').doc(id).get().then(doc => {
+    db.collection('publicProfiles').doc(id).get().then(doc => {
       if (!doc.exists) { showToastMsg('This account could not be found.'); return; }
       const d = doc.data();
       PROFILES[id] = {
@@ -1694,11 +1694,16 @@ function toggleFollow(id, btnEl) {
   applyFollowUI(id, p, btnEl);
   if (!FIREBASE_ENABLED || !currentUserId) return;
   const batch = db.batch();
+  // Follow/following counts now live only in publicProfiles (see the
+  // Firestore rules) — the private /users/{uid} doc is never written by
+  // anyone but its own owner, and never for counts anymore.
+  batch.update(db.collection('publicProfiles').doc(currentUserId), {
+    following: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1)
+  });
   batch.update(db.collection('users').doc(currentUserId), {
-    following: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1),
     followingIds: p.followed ? firebase.firestore.FieldValue.arrayUnion(id) : firebase.firestore.FieldValue.arrayRemove(id)
   });
-  batch.update(db.collection('users').doc(id), {
+  batch.update(db.collection('publicProfiles').doc(id), {
     followers: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1)
   });
   batch.commit().then(() => {
@@ -1741,7 +1746,7 @@ let allUsersCacheAt = 0;
 function loadAllUsersForSearch() {
   const now = Date.now();
   if (allUsersCache && (now - allUsersCacheAt) < 120000) return Promise.resolve(allUsersCache);
-  return db.collection('users').get().then(snapshot => {
+  return db.collection('publicProfiles').get().then(snapshot => {
     const list = [];
     snapshot.forEach(doc => {
       if (doc.id === currentUserId) return;
@@ -1751,7 +1756,17 @@ function loadAllUsersForSearch() {
     allUsersCache = list;
     allUsersCacheAt = now;
     return list;
-  }).catch(() => allUsersCache || []);
+  }).catch(err => {
+    // Don't hide this — a permission-denied error here almost always means
+    // Firestore Security Rules are blocking the "list all users" query, and
+    // silently returning [] made that look like "no such user" instead of
+    // a permissions problem.
+    console.error('loadAllUsersForSearch failed:', err.code || err.message || err);
+    if (err.code === 'permission-denied') {
+      showToastMsg('Search is blocked by Firestore rules — see console for details.');
+    }
+    return allUsersCache || [];
+  });
 }
 function renderSearchResults(list, q) {
   document.getElementById('searchEmptyState').style.display = q ? 'none' : 'block';
@@ -1863,7 +1878,45 @@ function injectFirestoreProfile(uid, d) {
   quietEnd = d.quietEnd || '07:00';
   lastReminderTime = d.lastReminderTime || Date.now();
   applyReminderSettingsToUI();
+  syncOwnPublicProfile(uid, d);
   return uid;
+}
+// Keeps /publicProfiles/{uid} — the searchable, viewable slice of an
+// account (name, avatar, bio, mentor flag, follow counts) — up to date.
+// Addiction type and gap/streak history never go in here; they stay only
+// in the private /users/{uid} doc. Called every login/signup/refresh, so
+// older accounts created before this existed get a public profile too.
+function syncOwnPublicProfile(uid, d) {
+  if (!FIREBASE_ENABLED) return;
+  const publicRef = db.collection('publicProfiles').doc(uid);
+  const publicFields = {
+    username: d.username, initials: d.initials, avatarBg: d.avatarBg,
+    avatarColor: d.avatarColor, mentor: !!d.mentor, bio: d.bio || ''
+  };
+  publicRef.get().then(doc => {
+    let followers, following;
+    if (!doc.exists) {
+      // No public profile yet — seed follow counts from the private doc
+      // once. From here on, publicProfiles is the only place they live,
+      // since other users' follows can only ever touch this collection.
+      followers = d.followers || 0;
+      following = d.following || 0;
+      publicRef.set(Object.assign({}, publicFields, { followers, following }));
+    } else {
+      const pd = doc.data();
+      followers = pd.followers || 0;
+      following = pd.following || 0;
+      publicRef.update(publicFields).catch(() => publicRef.set(publicFields, { merge: true }));
+    }
+    const p = PROFILES[uid];
+    if (!p) return;
+    p.followers = followers;
+    p.following = following;
+    if (currentUserId !== uid) return;
+    const ids = ['own-followers-num', 'own-following-num', 'mv-followers', 'mv-following'];
+    const vals = [followers, following, followers, following];
+    ids.forEach((elId, i) => { const el = document.getElementById(elId); if (el) el.textContent = vals[i]; });
+  }).catch(() => {});
 }
 const PERSONAL_STATE = {};
 function getCurrentStreakDays(id) {
