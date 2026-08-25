@@ -918,11 +918,11 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   if (RESTORABLE_SCREENS.includes(name)) {
-    try { localStorage.setItem(LAST_SCREEN_KEY, name); } catch (e) {}
+    try { sessionStorage.setItem(LAST_SCREEN_KEY, name); } catch (e) {}
   }
 }
 function getLastScreen() {
-  try { return localStorage.getItem(LAST_SCREEN_KEY); } catch (e) { return null; }
+  try { return sessionStorage.getItem(LAST_SCREEN_KEY); } catch (e) { return null; }
 }
 const DARK_MODE_KEY = 'rise_darkMode';
 function applyDarkMode(isDark) {
