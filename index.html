@@ -154,6 +154,10 @@
   #installBtnAction { background: var(--purple); color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
   #installBannerClose { background: none; border: none; color: #fff; opacity: 0.7; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px 6px; }
   body.dark #installBanner { background: #000; }
+  #authCheckOverlay { position: absolute; inset: 0; z-index: 100; background: var(--bg); display: flex; align-items: center; justify-content: center; }
+  #authCheckOverlay.hide { display: none; }
+  .auth-spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--purple); animation: auth-spin 0.8s linear infinite; }
+  @keyframes auth-spin { to { transform: rotate(360deg); } }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -219,6 +223,9 @@
 
 
 <div class="phone">
+  <!-- Shown while we check if there's already a logged-in session, so a
+       refresh doesn't flash the login screen before bouncing to home. -->
+  <div id="authCheckOverlay"><div class="auth-spinner"></div></div>
   <!-- ONBOARDING STEP 1: CHOOSE ACCOUNT TYPE -->
   <div class="screen active" id="screen-login">
     <div class="nav-bar">RISE</div>
@@ -893,6 +900,38 @@ if (FIREBASE_ENABLED) {
   auth = firebase.auth();
   db = firebase.firestore();
   storage = firebase.storage();
+}
+function hideAuthCheckOverlay() {
+  const overlay = document.getElementById('authCheckOverlay');
+  if (overlay) overlay.classList.add('hide');
+}
+// This is the piece that was missing: on every page load (including a
+// refresh), Firebase Auth already knows if a session exists — this just
+// checks it and routes to home instead of defaulting to the login screen.
+if (FIREBASE_ENABLED) {
+  auth.onAuthStateChanged(function (user) {
+    if (!user) {
+      hideAuthCheckOverlay();
+      showScreen('login');
+      return;
+    }
+    db.collection('users').doc(user.uid).get().then(function (doc) {
+      if (!doc.exists) {
+        hideAuthCheckOverlay();
+        showScreen('login');
+        return;
+      }
+      injectFirestoreProfile(user.uid, doc.data());
+      setCurrentUser(user.uid);
+      showScreen('feed');
+      hideAuthCheckOverlay();
+    }).catch(function () {
+      hideAuthCheckOverlay();
+      showScreen('login');
+    });
+  });
+} else {
+  hideAuthCheckOverlay();
 }
 function usernameToEmail(username) {
   return username.toLowerCase().replace(/[^a-z0-9]/g, '') + '@riseapp.local';
