@@ -964,10 +964,15 @@ function applyPersonalProfileUI() {
       if (placeholderEl) placeholderEl.style.display = 'block';
     }
   }
+  // Default the displayed name to the username chosen at signup
+  // (PROFILES[currentUserId].name); a custom display name saved here
+  // overrides that, but there's no truly blank/anonymous state anymore.
+  const signupUsername = (currentUserId && PROFILES[currentUserId]) ? PROFILES[currentUserId].name : '';
   const nameEl = document.getElementById('pp-username');
   if (nameEl) {
-    if (savedName) {
-      nameEl.textContent = savedName;
+    const displayName = savedName || signupUsername;
+    if (displayName) {
+      nameEl.textContent = displayName;
       nameEl.style.color = 'var(--text)';
     } else {
       nameEl.textContent = 'Add username';
@@ -991,6 +996,7 @@ function handlePersonalAvatarSelect(event) {
 function editPersonalUsername() {
   let current = '';
   try { current = localStorage.getItem(PP_USERNAME_KEY) || ''; } catch (e) {}
+  if (!current && currentUserId && PROFILES[currentUserId]) current = PROFILES[currentUserId].name || '';
   const next = prompt('Set your display name (visible on your profile):', current);
   if (next === null) return;
   const trimmed = next.trim();
