@@ -939,6 +939,7 @@ if (FIREBASE_ENABLED) {
   if (restored) showScreen(restored);
   hideAuthCheckOverlay();
 }
+try { applyDarkMode(localStorage.getItem(DARK_MODE_KEY) === '1'); } catch (e) {}
 function usernameToEmail(username) {
   return username.toLowerCase().replace(/[^a-z0-9]/g, '') + '@riseapp.local';
 }
@@ -1312,11 +1313,16 @@ function sendChatMessage() {
     if (last.from === 'me') { last.seen = true; renderChatMessages(convo); }
   }, 1800);
 }
-function toggleDarkMode() {
-  document.body.classList.toggle('dark');
-  const isDark = document.body.classList.contains('dark');
+const DARK_MODE_KEY = 'rise_darkMode';
+function applyDarkMode(isDark) {
+  document.body.classList.toggle('dark', isDark);
   document.getElementById('darkModeToggle').style.background = isDark ? 'var(--purple)' : '#ccc';
   document.getElementById('darkModeKnob').style.left = isDark ? '21px' : '3px';
+}
+function toggleDarkMode() {
+  const isDark = !document.body.classList.contains('dark');
+  applyDarkMode(isDark);
+  try { localStorage.setItem(DARK_MODE_KEY, isDark ? '1' : '0'); } catch (e) {}
 }
 let remindersOn = true;
 let reminderFrequencyHours = 12;
@@ -1663,7 +1669,6 @@ function viewProfile(id) {
   document.getElementById('vp-subtitle').textContent = p.subtitle;
   document.getElementById('vp-bio').style.display = p.bio ? 'block' : 'none';
   document.getElementById('vp-bio').textContent = p.bio;
-  document.getElementById('vp-posts').textContent = p.posts;
   document.getElementById('vp-followers').textContent = p.followers;
   document.getElementById('vp-following').textContent = p.following;
   document.getElementById('vp-gap').textContent = p.gap;
@@ -1673,8 +1678,17 @@ function viewProfile(id) {
   followBtn.innerHTML = followLabel(p, true);
   followBtn.classList.toggle('btn-purple', p.followed);
   followBtn.classList.toggle('btn-outline', !p.followed);
+  // Pull this person's actual posts from POSTS (same source the feed uses)
+  // instead of the separate, never-populated p.postsList field.
+  const theirPosts = Object.keys(POSTS).filter(pid => POSTS[pid].authorId === id).sort((a, b) => (POSTS[b].time || 0) - (POSTS[a].time || 0));
+  document.getElementById('vp-posts').textContent = theirPosts.length;
   const list = document.getElementById('vp-posts-list');
-  list.innerHTML = p.postsList.map(post => `<div class="mentor-post" style="border-bottom:1px solid var(--border);padding-top:0;"><div style="flex:1;"><div class="mentor-text">${post.text}</div><div class="mentor-time">${post.meta}</div></div></div>`).join('');
+  list.innerHTML = theirPosts.length
+    ? theirPosts.map(pid => {
+        const post = POSTS[pid];
+        return `<div class="mentor-post" style="border-bottom:1px solid var(--border);padding-top:0;cursor:pointer;" onclick="viewPost('${pid}')"><div style="flex:1;"><div class="mentor-text">${post.text}</div><div class="mentor-time">${timeAgo(post.time || Date.now())} · ${post.likes} <svg class="icon" style="width:0.85em;height:0.85em;"><use href="#i-heart"/></svg> · ${post.comments.length} <svg class="icon" style="width:0.85em;height:0.85em;"><use href="#i-message-circle"/></svg></div></div></div>`;
+      }).join('')
+    : `<div style="text-align:center;padding:20px 10px;color:var(--muted);font-size:12px;">No posts yet.</div>`;
   showScreen('viewProfile');
 }
 let myFollowingIds = new Set();
