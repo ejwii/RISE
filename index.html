@@ -923,7 +923,9 @@ if (FIREBASE_ENABLED) {
       }
       injectFirestoreProfile(user.uid, doc.data());
       setCurrentUser(user.uid);
-      showScreen('feed');
+      // Land back on whichever screen they refreshed from, not always 'feed'.
+      const restored = getLastScreen();
+      showScreen(restored || 'feed');
       hideAuthCheckOverlay();
     }).catch(function () {
       hideAuthCheckOverlay();
@@ -931,6 +933,10 @@ if (FIREBASE_ENABLED) {
     });
   });
 } else {
+  // Demo mode has no real session, but we can still restore the last
+  // screen the person was looking at instead of always landing on login.
+  const restored = getLastScreen();
+  if (restored) showScreen(restored);
   hideAuthCheckOverlay();
 }
 function usernameToEmail(username) {
@@ -1801,9 +1807,21 @@ function filterMentors() {
     renderSearchResults(matches, q);
   });
 }
+const LAST_SCREEN_KEY = 'rise_lastScreen';
+// Screens it's safe to drop someone back onto after a refresh — anything
+// that isn't mid-flow (signup steps, chat with a specific person, a single
+// post's detail view, etc. are skipped since we don't stash the extra
+// context — like which post or which chat — needed to rebuild them).
+const RESTORABLE_SCREENS = ['feed', 'search', 'home', 'messages', 'settings', 'notifications', 'emergency'];
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
+  if (RESTORABLE_SCREENS.includes(name)) {
+    try { localStorage.setItem(LAST_SCREEN_KEY, name); } catch (e) {}
+  }
+}
+function getLastScreen() {
+  try { return localStorage.getItem(LAST_SCREEN_KEY); } catch (e) { return null; }
 }
 let selectedAddictionValue = 'Alcohol';
 function selectAddiction(el) {
