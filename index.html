@@ -581,14 +581,22 @@
     </div>
     <div class="screen-body">
       <div id="profile-personal-view">
-      <div class="card streak-wrap">
-        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Since your last slip</div>
-        <div id="streak-num-val" style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:700;color:var(--purple);line-height:1;">7</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:2px;">days</div>
+      <div class="card streak-wrap" style="text-align:center;">
+        <div id="pp-avatar" onclick="document.getElementById('ppAvatarFileInput').click()" style="width:72px;height:72px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;cursor:pointer;overflow:hidden;background-size:cover;background-position:center;">
+          <svg class="icon" id="pp-avatar-placeholder" style="font-size:34px;color:var(--muted);"><use href="#i-user"/></svg>
+        </div>
+        <input type="file" id="ppAvatarFileInput" accept="image/*" style="display:none;" onchange="handlePersonalAvatarSelect(event)">
+        <div id="pp-username" onclick="editPersonalUsername()" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:600;cursor:pointer;color:var(--muted);">Add username</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px;">Tap the photo or name to set them</div>
         <div style="display:flex;justify-content:center;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
           <div style="cursor:pointer;" onclick="viewOwnFollowList('posts')"><div class="own-post-count" id="own-posts-num" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">0</div><div style="font-size:9.5px;color:var(--muted);">Posts</div></div>
           <div style="cursor:pointer;" onclick="viewOwnFollowList('followers')"><div id="own-followers-num" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">0</div><div style="font-size:9.5px;color:var(--muted);">Followers</div></div>
           <div style="cursor:pointer;" onclick="viewOwnFollowList('following')"><div id="own-following-num" style="font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;">0</div><div style="font-size:9.5px;color:var(--muted);">Following</div></div>
+        </div>
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Since your last slip</div>
+          <div id="streak-num-val" style="font-family:'Space Grotesk',sans-serif;font-size:44px;font-weight:700;color:var(--purple);line-height:1;">7</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">days</div>
         </div>
         <div style="font-size:10px;color:var(--muted);margin-top:8px;">Your username is visible here — your addiction type never is.</div>
       </div>
@@ -934,6 +942,63 @@ function toggleDarkMode() {
   const isDark = !document.body.classList.contains('dark');
   applyDarkMode(isDark);
   try { localStorage.setItem(DARK_MODE_KEY, isDark ? '1' : '0'); } catch (e) {}
+}
+// Personal-account profile customization: a photo and a display name,
+// separate from the anonymous login username. Both start blank/null
+// (like a fresh Instagram profile) until the person sets them, and
+// persist in localStorage so they survive a refresh.
+const PP_AVATAR_KEY = 'rise_personalAvatarUrl';
+const PP_USERNAME_KEY = 'rise_personalUsername';
+function applyPersonalProfileUI() {
+  let savedAvatar = null, savedName = null;
+  try { savedAvatar = localStorage.getItem(PP_AVATAR_KEY); } catch (e) {}
+  try { savedName = localStorage.getItem(PP_USERNAME_KEY); } catch (e) {}
+  const avatarEl = document.getElementById('pp-avatar');
+  const placeholderEl = document.getElementById('pp-avatar-placeholder');
+  if (avatarEl) {
+    if (savedAvatar) {
+      avatarEl.style.backgroundImage = `url("${savedAvatar}")`;
+      if (placeholderEl) placeholderEl.style.display = 'none';
+    } else {
+      avatarEl.style.backgroundImage = 'none';
+      if (placeholderEl) placeholderEl.style.display = 'block';
+    }
+  }
+  const nameEl = document.getElementById('pp-username');
+  if (nameEl) {
+    if (savedName) {
+      nameEl.textContent = savedName;
+      nameEl.style.color = 'var(--text)';
+    } else {
+      nameEl.textContent = 'Add username';
+      nameEl.style.color = 'var(--muted)';
+    }
+  }
+}
+function handlePersonalAvatarSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function () {
+    try { localStorage.setItem(PP_AVATAR_KEY, reader.result); } catch (e) {
+      showToastMsg('Could not save that photo — try a smaller image.');
+      return;
+    }
+    applyPersonalProfileUI();
+  };
+  reader.readAsDataURL(file);
+}
+function editPersonalUsername() {
+  let current = '';
+  try { current = localStorage.getItem(PP_USERNAME_KEY) || ''; } catch (e) {}
+  const next = prompt('Set your display name (visible on your profile):', current);
+  if (next === null) return;
+  const trimmed = next.trim();
+  try {
+    if (trimmed) localStorage.setItem(PP_USERNAME_KEY, trimmed);
+    else localStorage.removeItem(PP_USERNAME_KEY);
+  } catch (e) {}
+  applyPersonalProfileUI();
 }
 // This is the piece that was missing: on every page load (including a
 // refresh), Firebase Auth already knows if a session exists — this just
@@ -1632,6 +1697,7 @@ function setProfileType(type) {
   const isMentor = type === 'mentor';
   document.getElementById('profile-personal-view').style.display = isMentor ? 'none' : 'block';
   document.getElementById('profile-mentor-view').style.display = isMentor ? 'block' : 'none';
+  if (!isMentor) applyPersonalProfileUI();
 }
 function openCompose() {
   const p = PROFILES[currentUserId];
@@ -2146,6 +2212,7 @@ updateMsgBadge();
 // already defined — calling this too early caused a silent error that
 // made saved dark-mode never actually get applied on reload.
 try { applyDarkMode(localStorage.getItem(DARK_MODE_KEY) === '1'); } catch (e) {}
+applyPersonalProfileUI();
 </script>
 <script>
 (function () {
