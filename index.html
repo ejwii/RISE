@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RISE — Simplest MVP</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#6c5ce7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RISE">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="apple-touch-icon" sizes="152x152" href="icon-152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="icon-167.png">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -134,6 +145,15 @@
 
   .footer-note { margin-top: 18px; font-size: 11px; color: #aaa; text-align: center; max-width: 320px; line-height: 1.6; }
   .icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.15em; fill: none; stroke: currentColor; }
+
+  #installBanner { position: fixed; top: 0; left: 0; right: 0; z-index: 300; background: var(--dark); color: #fff; display: none; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); font-size: 12.5px; font-family: 'DM Sans', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,0.18); }
+  #installBanner.show { display: flex; }
+  #installBanner .ib-icon { font-size: 18px; flex-shrink: 0; }
+  #installBanner .ib-text { flex: 1; line-height: 1.4; }
+  #installBanner .ib-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  #installBtnAction { background: var(--purple); color: #fff; border: none; border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+  #installBannerClose { background: none; border: none; color: #fff; opacity: 0.7; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px 6px; }
+  body.dark #installBanner { background: #000; }
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
@@ -141,6 +161,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 </head>
 <body>
+<div id="installBanner">
+  <span class="ib-icon">📲</span>
+  <span class="ib-text" id="installBannerText">Install RISE for quick access from your home screen.</span>
+  <span class="ib-actions">
+    <button id="installBtnAction" type="button">Install</button>
+    <button id="installBannerClose" type="button" aria-label="Dismiss">✕</button>
+  </span>
+</div>
 <svg style="display:none;">
 <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></symbol>
@@ -444,10 +472,11 @@
 
       <div id="searchEmptyState" style="text-align:center;padding:40px 20px;color:var(--muted);">
         <svg class="icon" style="font-size:32px;margin-bottom:10px;"><use href="#i-search"/></svg>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">No one to find yet</div>
-        <div style="font-size:12px;line-height:1.6;">People will show up here once real accounts join RISE.</div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Find someone</div>
+        <div style="font-size:12px;line-height:1.6;">Type a username above to search real RISE accounts.</div>
       </div>
 
+      <div id="searchResultsList"></div>
       <div id="noMentorResult" style="display:none;font-size:12px;color:var(--muted);text-align:center;margin-top:20px;">No one found.</div>
       <div style="font-size:10.5px;color:var(--muted);text-align:center;margin-top:12px;line-height:1.6;">Only verified mentors can be messaged. Personal accounts show a username only — never real identity.</div>
     </div>
@@ -1563,7 +1592,24 @@ function viewProfile(id) {
   if (id === currentUserId) { showScreen('home'); return; }
   currentViewedProfile = id;
   followListBackTarget = 'viewProfile';
+  if (!PROFILES[id]) {
+    if (!FIREBASE_ENABLED) { showToastMsg('Could not find that account.'); return; }
+    showToastMsg('Loading profile...');
+    db.collection('users').doc(id).get().then(doc => {
+      if (!doc.exists) { showToastMsg('This account could not be found.'); return; }
+      const d = doc.data();
+      PROFILES[id] = {
+        name: d.username, initials: d.initials, avatarBg: d.avatarBg, avatarColor: d.avatarColor,
+        mentor: !!d.mentor, subtitle: d.mentor ? 'Verified mentor · Real identity on file' : 'Personal account · Anonymous',
+        bio: d.bio || '', posts: 0, followers: d.followers || 0, following: d.following || 0,
+        followed: myFollowingIds.has(id), gap: '0d', postsList: [], followersList: [], followingList: []
+      };
+      viewProfile(id);
+    }).catch(() => showToastMsg('Could not load this profile — check your connection.'));
+    return;
+  }
   const p = PROFILES[id];
+  p.followed = myFollowingIds.has(id);
   document.getElementById('vp-avatar').textContent = p.initials;
   document.getElementById('vp-avatar').style.background = p.avatarBg || '#f0e6ff';
   document.getElementById('vp-avatar').style.color = p.avatarColor || 'var(--purple)';
@@ -1586,10 +1632,8 @@ function viewProfile(id) {
   list.innerHTML = p.postsList.map(post => `<div class="mentor-post" style="border-bottom:1px solid var(--border);padding-top:0;"><div style="flex:1;"><div class="mentor-text">${post.text}</div><div class="mentor-time">${post.meta}</div></div></div>`).join('');
   showScreen('viewProfile');
 }
-function toggleFollow(id, btnEl) {
-  const p = PROFILES[id];
-  p.followed = !p.followed;
-  p.followers += p.followed ? 1 : -1;
+let myFollowingIds = new Set();
+function applyFollowUI(id, p, btnEl) {
   document.querySelectorAll('.fc-' + id).forEach(el => el.textContent = p.followers);
   if (btnEl.classList.contains('follow-btn')) {
     btnEl.textContent = followLabel(p, false);
@@ -1601,6 +1645,37 @@ function toggleFollow(id, btnEl) {
   if (currentViewedProfile === id) {
     document.getElementById('vp-followers').textContent = p.followers;
   }
+}
+function toggleFollow(id, btnEl) {
+  const p = PROFILES[id];
+  const wasFollowed = p.followed;
+  p.followed = !wasFollowed;
+  p.followers += p.followed ? 1 : -1;
+  if (p.followed) myFollowingIds.add(id); else myFollowingIds.delete(id);
+  applyFollowUI(id, p, btnEl);
+  if (!FIREBASE_ENABLED || !currentUserId) return;
+  const batch = db.batch();
+  batch.update(db.collection('users').doc(currentUserId), {
+    following: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1),
+    followingIds: p.followed ? firebase.firestore.FieldValue.arrayUnion(id) : firebase.firestore.FieldValue.arrayRemove(id)
+  });
+  batch.update(db.collection('users').doc(id), {
+    followers: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1)
+  });
+  batch.commit().then(() => {
+    const myProfile = PROFILES[currentUserId];
+    if (myProfile) {
+      myProfile.following += p.followed ? 1 : -1;
+      const el = document.getElementById('own-following-num');
+      if (el) el.textContent = myProfile.following;
+    }
+  }).catch(() => {
+    p.followed = wasFollowed;
+    p.followers += wasFollowed ? 1 : -1;
+    if (wasFollowed) myFollowingIds.add(id); else myFollowingIds.delete(id);
+    applyFollowUI(id, p, btnEl);
+    showToastMsg('Could not update follow — check your connection.');
+  });
 }
 function initFollowLabels() {
   document.querySelectorAll('.follow-btn').forEach(el => {
@@ -1622,17 +1697,55 @@ function showFollowList(type) {
   document.getElementById('followListItems').innerHTML = names.map(n => `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;"><div class="avatar" style="width:32px;height:32px;font-size:11px;">${n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div><div style="font-size:12.5px;font-weight:500;">${n}</div></div>`).join('');
   showScreen('followList');
 }
+let allUsersCache = null;
+let allUsersCacheAt = 0;
+function loadAllUsersForSearch() {
+  const now = Date.now();
+  if (allUsersCache && (now - allUsersCacheAt) < 120000) return Promise.resolve(allUsersCache);
+  return db.collection('users').get().then(snapshot => {
+    const list = [];
+    snapshot.forEach(doc => {
+      if (doc.id === currentUserId) return;
+      const d = doc.data();
+      list.push({ id: doc.id, username: d.username || '', initials: d.initials, avatarBg: d.avatarBg, avatarColor: d.avatarColor, mentor: !!d.mentor });
+    });
+    allUsersCache = list;
+    allUsersCacheAt = now;
+    return list;
+  }).catch(() => allUsersCache || []);
+}
+function renderSearchResults(list, q) {
+  document.getElementById('searchEmptyState').style.display = q ? 'none' : 'block';
+  document.getElementById('noMentorResult').style.display = (q && list.length === 0) ? 'block' : 'none';
+  document.getElementById('searchResultsList').innerHTML = list.map(u => `
+    <div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;" onclick="viewProfile('${u.id}')">
+      <div class="avatar" style="background:${u.avatarBg || '#f0ebff'};color:${u.avatarColor || 'var(--purple)'};">${u.initials || '?'}</div>
+      <div style="flex:1;">
+        <div style="font-size:12.5px;font-weight:600;">${u.username}</div>
+        <div style="font-size:10.5px;color:var(--muted);">${u.mentor ? 'Verified mentor' : 'Personal account'}</div>
+      </div>
+    </div>`).join('');
+}
 function filterMentors() {
   const q = document.getElementById('searchInput').value.trim().toLowerCase();
-  const results = document.querySelectorAll('.mentor-result');
-  let anyVisible = false;
-  results.forEach(r => {
-    const match = r.dataset.name.includes(q);
-    r.style.display = match ? 'block' : 'none';
-    if (match) anyVisible = true;
+  if (!q) {
+    document.getElementById('searchEmptyState').style.display = 'block';
+    document.getElementById('noMentorResult').style.display = 'none';
+    document.getElementById('searchResultsList').innerHTML = '';
+    return;
+  }
+  if (!FIREBASE_ENABLED) {
+    document.getElementById('searchEmptyState').style.display = 'none';
+    document.getElementById('noMentorResult').style.display = 'block';
+    document.getElementById('searchResultsList').innerHTML = '';
+    return;
+  }
+  loadAllUsersForSearch().then(list => {
+    const stillQ = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (stillQ !== q) return; // input changed while we were fetching — ignore stale result
+    const matches = list.filter(u => u.username.toLowerCase().includes(q));
+    renderSearchResults(matches, q);
   });
-  document.getElementById('searchEmptyState').style.display = q ? 'none' : 'block';
-  document.getElementById('noMentorResult').style.display = (q && !anyVisible) ? 'block' : 'none';
 }
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1681,7 +1794,7 @@ function completeSignup() {
       const [avatarBg, avatarColor] = colors[Math.floor(Math.random() * colors.length)];
       const userData = {
         username: pendingSignupUsername, mentor:false, addiction,
-        initials, avatarBg, avatarColor, followers:0, following:0,
+        initials, avatarBg, avatarColor, followers:0, following:0, followingIds:[],
         runStartTime: Date.now(), runsHistory: [0],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -1698,6 +1811,7 @@ function completeSignup() {
     });
 }
 function injectFirestoreProfile(uid, d) {
+  myFollowingIds = new Set(d.followingIds || []);
   PROFILES[uid] = {
     name: d.username, initials: d.initials, avatarBg: d.avatarBg, avatarColor: d.avatarColor,
     mentor: !!d.mentor, followsYou:false, subtitle: d.mentor ? 'Verified mentor · Real identity on file' : 'Personal account · Anonymous',
@@ -1875,6 +1989,8 @@ function doLogout() {
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
   currentUserId = null;
+  myFollowingIds = new Set();
+  allUsersCache = null;
   if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
   if (FIREBASE_ENABLED && auth.currentUser) auth.signOut();
   showScreen('login');
@@ -1900,6 +2016,88 @@ function startBreathing() {
 initFollowLabels();
 renderMessagesList();
 updateMsgBadge();
+</script>
+<script>
+(function () {
+  var deferredPrompt = null;
+  var banner = document.getElementById('installBanner');
+  var textEl = document.getElementById('installBannerText');
+  var installBtn = document.getElementById('installBtnAction');
+  var closeBtn = document.getElementById('installBannerClose');
+  var DISMISS_KEY = 'rise_install_dismissed';
+
+  function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(window.navigator.userAgent) && !window.MSStream;
+  }
+  function wasDismissed() {
+    try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; }
+  }
+  function remember() {
+    try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) {}
+  }
+  function hideBanner() {
+    banner.classList.remove('show');
+  }
+  function showBanner(mode) {
+    if (isStandalone() || wasDismissed()) return;
+    if (mode === 'ios') {
+      textEl.textContent = 'Install RISE: tap Share, then "Add to Home Screen".';
+      installBtn.style.display = 'none';
+    } else {
+      textEl.textContent = 'Install RISE for quick access from your home screen.';
+      installBtn.style.display = 'inline-flex';
+    }
+    banner.classList.add('show');
+  }
+
+  // Android / desktop Chrome, Edge, etc.
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    showBanner('android');
+  });
+
+  installBtn.addEventListener('click', function () {
+    if (!deferredPrompt) return;
+    hideBanner();
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.finally(function () {
+      deferredPrompt = null;
+    });
+  });
+
+  closeBtn.addEventListener('click', function () {
+    hideBanner();
+    remember();
+  });
+
+  window.addEventListener('appinstalled', function () {
+    hideBanner();
+    deferredPrompt = null;
+    if (typeof showToastMsg === 'function') {
+      showToastMsg('RISE installed. Find it on your home screen.');
+    }
+  });
+
+  // iOS Safari has no beforeinstallprompt — show manual instructions instead.
+  if (!isStandalone() && isIOS()) {
+    setTimeout(function () { showBanner('ios'); }, 1500);
+  }
+
+  // Register the service worker (required by browsers for installability,
+  // and enables the app to keep working when offline).
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {
+        // Installability still works without this in most browsers if the
+        // manifest + HTTPS requirements are met; fail silently.
+      });
+    });
+  }
+})();
 </script>
 </body>
 </html>
