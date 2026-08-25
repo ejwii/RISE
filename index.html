@@ -905,6 +905,36 @@ function hideAuthCheckOverlay() {
   const overlay = document.getElementById('authCheckOverlay');
   if (overlay) overlay.classList.add('hide');
 }
+// Screen + dark-mode persistence helpers, defined early (before the auth
+// check below uses them) so they're available whether that check runs
+// synchronously (demo mode) or asynchronously (real Firebase callback).
+const LAST_SCREEN_KEY = 'rise_lastScreen';
+// Screens it's safe to drop someone back onto after a refresh — anything
+// that isn't mid-flow (signup steps, chat with a specific person, a single
+// post's detail view, etc. are skipped since we don't stash the extra
+// context — like which post or which chat — needed to rebuild them).
+const RESTORABLE_SCREENS = ['feed', 'search', 'home', 'messages', 'settings', 'notifications', 'emergency'];
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (RESTORABLE_SCREENS.includes(name)) {
+    try { localStorage.setItem(LAST_SCREEN_KEY, name); } catch (e) {}
+  }
+}
+function getLastScreen() {
+  try { return localStorage.getItem(LAST_SCREEN_KEY); } catch (e) { return null; }
+}
+const DARK_MODE_KEY = 'rise_darkMode';
+function applyDarkMode(isDark) {
+  document.body.classList.toggle('dark', isDark);
+  document.getElementById('darkModeToggle').style.background = isDark ? 'var(--purple)' : '#ccc';
+  document.getElementById('darkModeKnob').style.left = isDark ? '21px' : '3px';
+}
+function toggleDarkMode() {
+  const isDark = !document.body.classList.contains('dark');
+  applyDarkMode(isDark);
+  try { localStorage.setItem(DARK_MODE_KEY, isDark ? '1' : '0'); } catch (e) {}
+}
 // This is the piece that was missing: on every page load (including a
 // refresh), Firebase Auth already knows if a session exists — this just
 // checks it and routes to home instead of defaulting to the login screen.
@@ -939,7 +969,6 @@ if (FIREBASE_ENABLED) {
   if (restored) showScreen(restored);
   hideAuthCheckOverlay();
 }
-try { applyDarkMode(localStorage.getItem(DARK_MODE_KEY) === '1'); } catch (e) {}
 function usernameToEmail(username) {
   return username.toLowerCase().replace(/[^a-z0-9]/g, '') + '@riseapp.local';
 }
@@ -1312,17 +1341,6 @@ function sendChatMessage() {
     const last = convo.messages[convo.messages.length-1];
     if (last.from === 'me') { last.seen = true; renderChatMessages(convo); }
   }, 1800);
-}
-const DARK_MODE_KEY = 'rise_darkMode';
-function applyDarkMode(isDark) {
-  document.body.classList.toggle('dark', isDark);
-  document.getElementById('darkModeToggle').style.background = isDark ? 'var(--purple)' : '#ccc';
-  document.getElementById('darkModeKnob').style.left = isDark ? '21px' : '3px';
-}
-function toggleDarkMode() {
-  const isDark = !document.body.classList.contains('dark');
-  applyDarkMode(isDark);
-  try { localStorage.setItem(DARK_MODE_KEY, isDark ? '1' : '0'); } catch (e) {}
 }
 let remindersOn = true;
 let reminderFrequencyHours = 12;
@@ -1821,22 +1839,6 @@ function filterMentors() {
     renderSearchResults(matches, q);
   });
 }
-const LAST_SCREEN_KEY = 'rise_lastScreen';
-// Screens it's safe to drop someone back onto after a refresh — anything
-// that isn't mid-flow (signup steps, chat with a specific person, a single
-// post's detail view, etc. are skipped since we don't stash the extra
-// context — like which post or which chat — needed to rebuild them).
-const RESTORABLE_SCREENS = ['feed', 'search', 'home', 'messages', 'settings', 'notifications', 'emergency'];
-function showScreen(name) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById('screen-' + name).classList.add('active');
-  if (RESTORABLE_SCREENS.includes(name)) {
-    try { localStorage.setItem(LAST_SCREEN_KEY, name); } catch (e) {}
-  }
-}
-function getLastScreen() {
-  try { return localStorage.getItem(LAST_SCREEN_KEY); } catch (e) { return null; }
-}
 let selectedAddictionValue = 'Alcohol';
 function selectAddiction(el) {
   document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
@@ -2140,6 +2142,10 @@ function startBreathing() {
 initFollowLabels();
 renderMessagesList();
 updateMsgBadge();
+// Placed here (end of script) so DARK_MODE_KEY and applyDarkMode are
+// already defined — calling this too early caused a silent error that
+// made saved dark-mode never actually get applied on reload.
+try { applyDarkMode(localStorage.getItem(DARK_MODE_KEY) === '1'); } catch (e) {}
 </script>
 <script>
 (function () {
