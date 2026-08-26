@@ -395,9 +395,9 @@
     <div class="nav-bar" style="position:relative;display:flex;align-items:center;justify-content:space-between;">
       <span>RISE · home</span>
       <div style="display:flex;align-items:center;gap:10px;">
-        <span style="cursor:pointer;position:relative;display:inline-flex;" onclick="showScreen('notifications')">
+        <span style="cursor:pointer;position:relative;display:inline-flex;" onclick="openNotifications()">
           <svg class="icon" style="font-size:18px;"><use href="#i-bell"/></svg>
-          <span style="position:absolute;top:-3px;right:-3px;width:7px;height:7px;background:var(--red);border-radius:50%;"></span>
+          <span class="notif-badge-dot" style="display:none;position:absolute;top:-3px;right:-3px;width:7px;height:7px;background:var(--red);border-radius:50%;"></span>
         </span>
         <div class="mini-crisis" style="position:static;" onclick="showScreen('emergency')"><svg class="icon"><use href="#i-heart-rate-monitor"/></svg> Crisis</div>
       </div>
@@ -547,7 +547,8 @@
         <svg class="icon" style="color:var(--muted);font-size:18px;margin-top:2px;"><use href="#i-bell"/></svg>
         <div style="flex:1;font-size:12.5px;">Reminder: it's been a while — how are you doing today?<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">Yesterday</div></div>
       </div>
-      <div style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px;line-height:1.6;">Follows, replies, and likes will show up here once you're connected with real people.</div>
+      <div id="notifList"></div>
+      <div id="notifEmpty" style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px;line-height:1.6;">Follows, replies, and likes will show up here once you're connected with real people.</div>
     </div>
     <div class="bottom-nav">
       <div class="bn-item" onclick="showScreen('feed')"><svg class="icon"><use href="#i-home"/></svg>Home</div>
@@ -1065,6 +1066,22 @@ let feedUnsubscribe = null;
 const POSTS = {};
 let currentPostAuthorId = null;
 let currentPostId = null;
+function sendNotification(toUserId, type) {
+  if (!FIREBASE_ENABLED || !currentUserId || !toUserId || toUserId === currentUserId) return;
+  const myProfile = PROFILES[currentUserId];
+  if (!myProfile) return;
+  db.collection('notifications').add({
+    toUserId: toUserId,
+    fromUserId: currentUserId,
+    fromName: myProfile.name,
+    fromInitials: myProfile.initials,
+    fromAvatarBg: myProfile.avatarBg,
+    fromAvatarColor: myProfile.avatarColor,
+    type: type,
+    read: false,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(() => {});
+}
 function toggleLike(id, el, fromDetail) {
   const p = POSTS[id];
   if (!p.likedBy) p.likedBy = [];
@@ -1081,6 +1098,7 @@ function toggleLike(id, el, fromDetail) {
       likes: firebase.firestore.FieldValue.increment(p.liked ? 1 : -1),
       likedBy: p.liked ? firebase.firestore.FieldValue.arrayUnion(currentUserId) : firebase.firestore.FieldValue.arrayRemove(currentUserId)
     }).catch(() => showToastMsg('Could not save your like — check your connection.'));
+    if (p.liked) sendNotification(p.authorId, 'like');
   }
 }
 let extraFeedItems = []; // {type:'post'|'repost', id, byUserId?, time}
@@ -1145,6 +1163,7 @@ function confirmRepost() {
       reposts: firebase.firestore.FieldValue.increment(alreadyReposted ? -1 : 1),
       repostedBy: alreadyReposted ? firebase.firestore.FieldValue.arrayRemove(currentUserId) : firebase.firestore.FieldValue.arrayUnion(currentUserId)
     }).catch(() => showToastMsg('Could not save your repost — check your connection.'));
+    if (!alreadyReposted) sendNotification(p.authorId, 'repost');
   }
 }
 function confirmQuote() {
@@ -1172,6 +1191,7 @@ function submitQuote() {
       likes:0, likedBy:[], reposts:0, repostedBy:[], comments:[], quotedPostId: originalId,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     }).catch(() => showToastMsg('Could not post your quote — check your connection.'));
+    sendNotification(original.authorId, 'quote');
   }
   const id = 'p' + Date.now();
   POSTS[id] = { authorId: currentUserId, author: prof.name + (prof.mentor ? '' : ' (you)'), avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: prof.mentor, text: cleanQuoteText, likes:0, liked:false, reposts:0, repostedBy:[], comments:[], time: Date.now(), quotedPostId: originalId };
@@ -1839,6 +1859,9 @@ function toggleFollow(id, btnEl) {
       myProfile.following += p.followed ? 1 : -1;
       const el = document.getElementById('own-following-num');
       if (el) el.textContent = myProfile.following;
+      if (p.followed) {
+        sendNotification(id, 'follow');
+      }
     }
   }).catch(() => {
     p.followed = wasFollowed;
@@ -2177,6 +2200,78 @@ function listenToLiveFeed() {
     renderMyPosts();
   });
 }
+let notifUnsubscribe = null;
+let unreadNotifCount = 0;
+function notifText(n) {
+  if (n.type === 'follow') return n.fromName + ' started following you';
+  if (n.type === 'like') return n.fromName + ' liked your post';
+  if (n.type === 'repost') return n.fromName + ' reposted your post';
+  if (n.type === 'quote') return n.fromName + ' quoted your post';
+  return n.fromName + ' sent you a notification';
+}
+function updateNotifBadge() {
+  document.querySelectorAll('.notif-badge-dot').forEach(el => {
+    el.style.display = unreadNotifCount > 0 ? 'block' : 'none';
+  });
+}
+function renderNotifications(items) {
+  const listEl = document.getElementById('notifList');
+  const emptyEl = document.getElementById('notifEmpty');
+  if (!listEl) return;
+  if (!items.length) {
+    listEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  listEl.innerHTML = items.map(n => `
+    <div class="card" style="display:flex;gap:10px;align-items:center;${n.read ? '' : 'background:rgba(108,92,231,0.06);'}">
+      <div class="avatar" style="width:34px;height:34px;font-size:11px;background:${n.fromAvatarBg};color:${n.fromAvatarColor};">${n.fromInitials}</div>
+      <div style="flex:1;font-size:12.5px;">${notifText(n)}<div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${timeAgo(n.time)}</div></div>
+    </div>
+  `).join('');
+}
+function listenToNotifications() {
+  if (!FIREBASE_ENABLED || !currentUserId) return;
+  if (notifUnsubscribe) notifUnsubscribe();
+  notifUnsubscribe = db.collection('notifications')
+    .where('toUserId', '==', currentUserId)
+    .orderBy('createdAt', 'desc')
+    .limit(50)
+    .onSnapshot(snapshot => {
+      const items = [];
+      unreadNotifCount = 0;
+      snapshot.forEach(doc => {
+        const d = doc.data();
+        if (!d.read) unreadNotifCount++;
+        items.push({
+          id: doc.id,
+          fromName: d.fromName || 'Someone',
+          fromInitials: d.fromInitials || '?',
+          fromAvatarBg: d.fromAvatarBg || '#6c5ce7',
+          fromAvatarColor: d.fromAvatarColor || '#fff',
+          type: d.type || 'follow',
+          read: !!d.read,
+          time: d.createdAt ? d.createdAt.toMillis() : Date.now()
+        });
+      });
+      renderNotifications(items);
+      updateNotifBadge();
+    }, () => { /* rules/index not set up yet — leave placeholder showing */ });
+}
+function markNotificationsRead() {
+  if (!FIREBASE_ENABLED || !currentUserId || unreadNotifCount === 0) return;
+  db.collection('notifications').where('toUserId', '==', currentUserId).where('read', '==', false).get().then(snapshot => {
+    if (snapshot.empty) return;
+    const batch = db.batch();
+    snapshot.forEach(doc => batch.update(doc.ref, { read: true }));
+    batch.commit().catch(() => {});
+  }).catch(() => {});
+}
+function openNotifications() {
+  showScreen('notifications');
+  markNotificationsRead();
+}
 function setCurrentUser(id) {
   currentUserId = id;
   const p = PROFILES[id];
@@ -2204,6 +2299,7 @@ function setCurrentUser(id) {
   renderBaseFeed();
   if (FIREBASE_ENABLED) {
     listenToLiveFeed();
+    listenToNotifications();
   } else {
     renderExtraFeed();
   }
@@ -2216,6 +2312,9 @@ function doLogout() {
   myFollowingIds = new Set();
   allUsersCache = null;
   if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
+  if (notifUnsubscribe) { notifUnsubscribe(); notifUnsubscribe = null; }
+  unreadNotifCount = 0;
+  updateNotifBadge();
   if (FIREBASE_ENABLED && auth.currentUser) auth.signOut();
   showScreen('login');
 }

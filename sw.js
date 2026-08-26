@@ -1,7 +1,7 @@
 // Minimal service worker for RISE — enables installability and basic
 // offline support for the app shell. Bump CACHE_NAME on every deploy
 // so returning users pick up the new version instead of a stale cache.
-const CACHE_NAME = 'rise-shell-v2';
+const CACHE_NAME = 'rise-shell-v4';
 const APP_SHELL = [
   './',
   './index.html',
