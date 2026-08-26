@@ -203,6 +203,8 @@
 <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h13l-3 5 3 5H5"/></symbol>
 <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"/><path d="M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></symbol>
 <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 19c-7 0-11-7-11-7a18.6 18.6 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 7 11 7a18.6 18.6 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24"/><path d="M1 1l22 22"/></symbol>
 <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></symbol>
 <symbol id="i-info-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
 <symbol id="i-phone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
@@ -239,7 +241,10 @@
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Username</div>
         <input type="text" id="loginUsername" placeholder="Your username" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px;" />
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Password</div>
-        <input type="password" id="loginPassword" placeholder="Your password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;" />
+        <div style="position:relative;">
+          <input type="password" id="loginPassword" placeholder="Your password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+          <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('loginPassword', this)"><use href="#i-eye"/></svg>
+        </div>
         <div id="loginError" style="display:none;color:#e74c3c;font-size:11px;margin-top:8px;">Enter both a username and password.</div>
       </div>
       <button class="btn btn-purple" onclick="attemptLogin()"><svg class="icon"><use href="#i-check"/></svg> Log in</button>
@@ -288,7 +293,10 @@
         <div class="card-title">Username</div>
         <input type="text" id="suUsername" placeholder="e.g. Warrior_247" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
         <div class="card-title">Password</div>
-        <input type="password" id="suPassword" placeholder="••••••••" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
+        <div style="position:relative;margin-top:4px;">
+          <input type="password" id="suPassword" placeholder="••••••••" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+          <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('suPassword', this)"><use href="#i-eye"/></svg>
+        </div>
         <div id="suError" style="display:none;color:#e74c3c;font-size:11px;margin-top:8px;">Enter a username and a password (6+ characters).</div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px;">No real name, no email, ever. Password just lets you log back in as this same anonymous identity.</div>
       </div>
@@ -855,11 +863,20 @@
     <div id="cpDemoNote" style="display:none;font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:10px;">RISE isn't connected to a live account system yet, so there's no password to change here.</div>
     <div id="cpForm">
       <div style="font-size:11px;font-weight:600;margin-bottom:4px;">Current password</div>
-      <input type="password" id="cpCurrent" placeholder="Your current password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" />
+      <div style="position:relative;margin-bottom:10px;">
+        <input type="password" id="cpCurrent" placeholder="Your current password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+        <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('cpCurrent', this)"><use href="#i-eye"/></svg>
+      </div>
       <div style="font-size:11px;font-weight:600;margin-bottom:4px;">New password</div>
-      <input type="password" id="cpNew" placeholder="6+ characters" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" />
+      <div style="position:relative;margin-bottom:10px;">
+        <input type="password" id="cpNew" placeholder="6+ characters" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+        <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('cpNew', this)"><use href="#i-eye"/></svg>
+      </div>
       <div style="font-size:11px;font-weight:600;margin-bottom:4px;">Confirm new password</div>
-      <input type="password" id="cpConfirm" placeholder="Re-enter new password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:10px;" />
+      <div style="position:relative;margin-bottom:10px;">
+        <input type="password" id="cpConfirm" placeholder="Re-enter new password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+        <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('cpConfirm', this)"><use href="#i-eye"/></svg>
+      </div>
       <div id="cpError" style="display:none;font-size:11.5px;color:#e74c3c;margin-bottom:10px;"></div>
       <button class="btn btn-purple" id="cpSubmitBtn" onclick="submitChangePassword()"><svg class="icon"><use href="#i-check"/></svg> Update password</button>
     </div>
@@ -2102,6 +2119,15 @@ function showToastMsg(msg) {
 function confirmLogout() {
   document.getElementById('logoutSheet').classList.add('show');
 }
+function togglePasswordVisibility(inputId, iconEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  const use = iconEl.querySelector('use');
+  if (use) use.setAttribute('href', showing ? '#i-eye' : '#i-eye-off');
+}
+
 function attemptLogin() {
   const u = document.getElementById('loginUsername').value.trim().toLowerCase();
   const pw = document.getElementById('loginPassword').value.trim();

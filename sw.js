@@ -1,6 +1,7 @@
-// RISE — service worker
-// Enables "Add to Home Screen" / install prompts and a basic offline app shell.
-const CACHE_NAME = 'rise-app-shell-v1';
+// Minimal service worker for RISE — enables installability and basic
+// offline support for the app shell. Bump CACHE_NAME on every deploy
+// so returning users pick up the new version instead of a stale cache.
+const CACHE_NAME = 'rise-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,7 +13,7 @@ const APP_SHELL = [
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL).catch(() => {}))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
   );
 });
 
@@ -24,14 +25,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Network-first for navigation requests (so live app data/Firebase still works),
-// falling back to the cached shell when offline. Cache-first for the app's own
-// static assets (icons/manifest). Everything else (Firebase, fonts, etc.) just
-// passes straight through to the network.
+// Network-first for navigation requests (so users get fresh content when
+// online), falling back to the cached shell when offline. Cache-first for
+// everything else (icons, fonts, etc).
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  const url = new URL(req.url);
-  const isSameOrigin = url.origin === self.location.origin;
+  if (req.method !== 'GET') return;
 
   if (req.mode === 'navigate') {
     event.respondWith(
@@ -40,9 +39,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isSameOrigin && APP_SHELL.some((p) => url.pathname.endsWith(p.replace('./', '')))) {
-    event.respondWith(
-      caches.match(req).then((cached) => cached || fetch(req))
-    );
-  }
+  event.respondWith(
+    caches.match(req).then((cached) => {
+      if (cached) return cached;
+      return fetch(req).then((res) => {
+        if (res && res.status === 200 && res.type === 'basic') {
+          const resClone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
+        }
+        return res;
+      }).catch(() => cached);
+    })
+  );
 });
