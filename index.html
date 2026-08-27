@@ -2037,7 +2037,8 @@ function syncOwnPublicProfile(uid, d) {
   const publicRef = db.collection('publicProfiles').doc(uid);
   const publicFields = {
     username: d.username, initials: d.initials, avatarBg: d.avatarBg,
-    avatarColor: d.avatarColor, mentor: !!d.mentor, bio: d.bio || ''
+    avatarColor: d.avatarColor, mentor: !!d.mentor, bio: d.bio || '',
+    runStartTime: d.runStartTime || Date.now()
   };
   publicRef.get().then(doc => {
     let followers, following;
@@ -2074,11 +2075,30 @@ const LEADERBOARD_EXTRAS = [];
 function renderLeaderboard() {
   const container = document.getElementById('leaderboard-list');
   if (!container || !currentUserId) return;
-  const entries = Object.keys(PERSONAL_STATE).map(id => {
-    const prof = PROFILES[id];
-    return { name: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, gap: getCurrentStreakDays(id), isYou: id === currentUserId };
-  }).concat(LEADERBOARD_EXTRAS.map(e => ({...e, isYou:false})));
-  entries.sort((a, b) => b.gap - a.gap);
+  if (!FIREBASE_ENABLED) {
+    // Demo mode fallback — local data only.
+    const entries = Object.keys(PERSONAL_STATE).map(id => {
+      const prof = PROFILES[id];
+      return { name: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, gap: getCurrentStreakDays(id), isYou: id === currentUserId };
+    }).concat(LEADERBOARD_EXTRAS.map(e => ({...e, isYou:false})));
+    entries.sort((a, b) => b.gap - a.gap);
+    renderLeaderboardRows(container, entries);
+    return;
+  }
+  // Global leaderboard — pulls every public profile, ranked by longest
+  // current gap. Addiction type is never part of publicProfiles, so this
+  // never exposes it.
+  db.collection('publicProfiles').orderBy('runStartTime', 'asc').limit(50).get().then(snapshot => {
+    const entries = snapshot.docs.map(doc => {
+      const d = doc.data();
+      const start = d.runStartTime || Date.now();
+      const gap = Math.floor((Date.now() - start) / 86400000);
+      return { name: d.username, avatar: d.initials, avatarBg: d.avatarBg, avatarColor: d.avatarColor, gap, isYou: doc.id === currentUserId };
+    });
+    renderLeaderboardRows(container, entries);
+  }).catch(() => { container.innerHTML = ''; });
+}
+function renderLeaderboardRows(container, entries) {
   container.innerHTML = entries.map((e, i) => {
     const rank = i + 1;
     const rankColor = e.isYou ? 'var(--purple)' : rank === 1 ? '#f1c40f' : rank === 2 ? '#bdc3c7' : rank === 3 ? '#cd7f32' : 'var(--muted)';
@@ -2122,6 +2142,9 @@ function logSlip() {
       runsHistory: state.runsHistory,
       runStartTime: state.runStartTime
     }).catch(() => showToastMsg('Logged locally, but could not save to your account — check your connection.'));
+    db.collection('publicProfiles').doc(currentUserId).update({
+      runStartTime: state.runStartTime
+    }).catch(() => {});
   }
   showToastMsg(`Logged. That run held for ${endedRun} day${endedRun === 1 ? '' : 's'} — it stays on your chart. A new run starts now at day 0. Every day you don't log a slip, this number climbs on its own.`);
 }
