@@ -1845,13 +1845,15 @@ function toggleFollow(id, btnEl) {
   // Firestore rules) — the private /users/{uid} doc is never written by
   // anyone but its own owner, and never for counts anymore.
   batch.update(db.collection('publicProfiles').doc(currentUserId), {
-    following: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1)
+    following: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1),
+    followingIds: p.followed ? firebase.firestore.FieldValue.arrayUnion(id) : firebase.firestore.FieldValue.arrayRemove(id)
   });
   batch.update(db.collection('users').doc(currentUserId), {
     followingIds: p.followed ? firebase.firestore.FieldValue.arrayUnion(id) : firebase.firestore.FieldValue.arrayRemove(id)
   });
   batch.update(db.collection('publicProfiles').doc(id), {
-    followers: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1)
+    followers: firebase.firestore.FieldValue.increment(p.followed ? 1 : -1),
+    followerIds: p.followed ? firebase.firestore.FieldValue.arrayUnion(currentUserId) : firebase.firestore.FieldValue.arrayRemove(currentUserId)
   });
   batch.commit().then(() => {
     const myProfile = PROFILES[currentUserId];
@@ -1886,10 +1888,28 @@ function viewOwnFollowList(type, id) {
 function showFollowList(type) {
   const p = PROFILES[currentViewedProfile];
   if (type === 'posts') { return; }
-  const names = type === 'followers' ? p.followersList : p.followingList;
-  document.getElementById('followListTitle').textContent = (type === 'followers' ? 'Followers' : 'Following') + ' · ' + p.name;
-  document.getElementById('followListItems').innerHTML = names.map(n => `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;"><div class="avatar" style="width:32px;height:32px;font-size:11px;">${n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}</div><div style="font-size:12.5px;font-weight:500;">${n}</div></div>`).join('');
+  document.getElementById('followListTitle').textContent = (type === 'followers' ? 'Followers' : 'Following') + ' · ' + (p ? p.name : '');
+  document.getElementById('followListItems').innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Loading...</div>';
   showScreen('followList');
+  if (!FIREBASE_ENABLED) { document.getElementById('followListItems').innerHTML = ''; return; }
+  db.collection('publicProfiles').doc(currentViewedProfile).get().then(doc => {
+    if (!doc.exists) { document.getElementById('followListItems').innerHTML = ''; return; }
+    const d = doc.data();
+    const ids = (type === 'followers' ? d.followerIds : d.followingIds) || [];
+    if (!ids.length) {
+      document.getElementById('followListItems').innerHTML = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No ${type === 'followers' ? 'followers' : 'following'} yet.</div>`;
+      return;
+    }
+    return Promise.all(ids.map(id => db.collection('publicProfiles').doc(id).get())).then(docs => {
+      const rows = docs.filter(dd => dd.exists).map(dd => {
+        const pd = dd.data();
+        return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;" onclick="viewProfile('${dd.id}')"><div class="avatar" style="width:32px;height:32px;font-size:11px;background:${pd.avatarBg || '#f0e6ff'};color:${pd.avatarColor || 'var(--purple)'};">${pd.initials || '?'}</div><div style="font-size:12.5px;font-weight:500;">${pd.username}</div></div>`;
+      }).join('');
+      document.getElementById('followListItems').innerHTML = rows || `<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No ${type === 'followers' ? 'followers' : 'following'} yet.</div>`;
+    });
+  }).catch(() => {
+    document.getElementById('followListItems').innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">Could not load — check your connection.</div>';
+  });
 }
 let allUsersCache = null;
 let allUsersCacheAt = 0;
