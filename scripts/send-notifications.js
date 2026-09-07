@@ -9,7 +9,17 @@
 
 const admin = require("firebase-admin");
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+// Phones/text viewers sometimes turn the private_key field's literal \n
+// escape sequences into real line breaks when copying the file's content.
+// That makes the raw text invalid JSON (a bare newline inside a quoted
+// string), even though it looks fine to a human. Repair just that one
+// field before parsing, regardless of how the paste mangled it.
+let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+raw = raw.replace(/"private_key":\s*"([^"]*)"/, (match, key) => {
+  const fixed = key.replace(/\r?\n/g, "\\n");
+  return `"private_key": "${fixed}"`;
+});
+const serviceAccount = JSON.parse(raw);
 admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 
 const db = admin.firestore();
