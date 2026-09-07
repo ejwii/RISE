@@ -1,0 +1,7 @@
+{
+  "name": "rise-notification-poller",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  }
+}
