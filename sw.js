@@ -1,54 +1,74 @@
-// Minimal service worker for RISE — enables installability and basic
-// offline support for the app shell. Bump CACHE_NAME on every deploy
-// so returning users pick up the new version instead of a stale cache.
-const CACHE_NAME = 'rise-shell-v4';
-const APP_SHELL = [
-  './',
-  './index.html',
-  './manifest.webmanifest',
-  './icon-192.png',
-  './icon-512.png'
-];
+// RISE service worker
+// Handles: (1) installability/offline shell, (2) push notifications that
+// arrive while the app is fully closed.
+//
+// NOTE: if you already had a sw.js with custom caching logic before this,
+// merge that logic in below instead of replacing the whole file — the
+// important new part is the firebase-messaging block at the bottom.
 
-self.addEventListener('install', (event) => {
+const CACHE_NAME = 'rise-shell-v1';
+
+self.addEventListener('install', event => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => {})
-  );
 });
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+self.addEventListener('activate', event => {
+  event.waitUntil(self.clients.claim());
 });
 
-// Network-first for navigation requests (so users get fresh content when
-// online), falling back to the cached shell when offline. Cache-first for
-// everything else (icons, fonts, etc).
-self.addEventListener('fetch', (event) => {
-  const req = event.request;
-  if (req.method !== 'GET') return;
-
-  if (req.mode === 'navigate') {
-    event.respondWith(
-      fetch(req).catch(() => caches.match('./index.html'))
-    );
-    return;
-  }
-
+// Basic network-first fetch passthrough — keeps the app installable
+// without introducing stale-cache bugs. Expand this with real caching
+// later if you want true offline support.
+self.addEventListener('fetch', event => {
   event.respondWith(
-    caches.match(req).then((cached) => {
-      if (cached) return cached;
-      return fetch(req).then((res) => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const resClone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
-        }
-        return res;
-      }).catch(() => cached);
+    fetch(event.request).catch(() => caches.match(event.request))
+  );
+});
+
+// ------------------------------------------------------------
+// PUSH NOTIFICATIONS (background / app fully closed)
+// ------------------------------------------------------------
+// Requires the compat SDK inside the service worker context.
+importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js');
+
+// Same config as index.html — service workers can't read your page's
+// JS variables, so it's repeated here.
+firebase.initializeApp({
+  apiKey: "AIzaSyCgWSGpVj1FumHulfjOta3MYeukQwDdIXo",
+  authDomain: "rise-82a62.firebaseapp.com",
+  projectId: "rise-82a62",
+  storageBucket: "rise-82a62.firebasestorage.app",
+  messagingSenderId: "535666284881",
+  appId: "1:535666284881:web:3941c87c1ec2964ce01b70"
+});
+
+const messaging = firebase.messaging();
+
+// Fired by FCM when a push arrives and the app/tab is NOT in the
+// foreground. This is what makes a notification show up even if RISE
+// is fully closed — the OS wakes this file up just long enough to run.
+messaging.onBackgroundMessage(payload => {
+  const title = (payload.notification && payload.notification.title) || 'RISE';
+  const body = (payload.notification && payload.notification.body) || '';
+  self.registration.showNotification(title, {
+    body,
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    tag: (payload.data && payload.data.tag) || 'rise-push',
+    data: payload.data || {}
+  });
+});
+
+// Tapping the OS notification opens (or focuses) the app.
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
     })
   );
 });
