@@ -141,7 +141,137 @@ function applyActivityNotifToggleUI() {
   });
 })();
 
-// ---- 4) Overrides that plug push into existing flows ------------
+// ---- 5) Fix: "(you)" wrongly baked into stored names ------------
+// Root cause: post/comment creation code appended " (you)" directly into
+// the author name TEXT that gets saved to Firestore, so every viewer —
+// not just the actual author — saw "(you)" forever, since it was just
+// literal saved text, never computed per-viewer.
+function addComment() {
+  const input = document.getElementById('pd-comment-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const prof = PROFILES[currentUserId];
+  const comment = {
+    authorId: currentUserId,
+    authorName: prof.name,
+    avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor,
+    text: text.replace(/</g, '&lt;'), likes: 0, liked: false
+  };
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(currentPostId).update({
+      comments: firebase.firestore.FieldValue.arrayUnion(comment)
+    }).then(() => {
+      POSTS[currentPostId].comments.push(comment);
+      input.value = '';
+      renderComments(POSTS[currentPostId]);
+    }).catch(() => showToastMsg('Could not post your comment — check your connection.'));
+    return;
+  }
+  POSTS[currentPostId].comments.push(comment);
+  input.value = '';
+  renderComments(POSTS[currentPostId]);
+}
+
+function renderComments(p) {
+  const commentsDiv = document.getElementById('pd-comments');
+  commentsDiv.innerHTML = p.comments.map((c, i) => {
+    // Strip any "(you)" baked into older, already-saved comments, then
+    // recompute correctly per-viewer instead of trusting stored text.
+    const cleanName = (c.authorName || '').replace(' (you)', '');
+    const isMe = c.authorId && c.authorId === currentUserId;
+    const nameHTML = isMe ? `${cleanName} <span style="font-size:10px;color:var(--muted);font-weight:400;">(you)</span>` : cleanName;
+    const clickAttr = c.authorId ? ` onclick="viewProfile('${c.authorId}')" style="cursor:pointer;"` : '';
+    return `
+    <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;">
+      <div class="avatar"${clickAttr} style="width:26px;height:26px;font-size:10px;background:${c.avatarBg};color:${c.avatarColor};flex-shrink:0;${c.authorId ? 'cursor:pointer;' : ''}">${c.avatar}</div>
+      <div style="flex:1;">
+        <div${clickAttr} style="font-size:12px;font-weight:600;">${nameHTML}</div>
+        <div style="font-size:12px;margin-top:2px;">${c.text}</div>
+        <div style="display:flex;gap:14px;margin-top:6px;">
+          <span style="font-size:10.5px;color:${c.liked ? 'var(--purple)' : 'var(--muted)'};cursor:pointer;display:flex;align-items:center;gap:3px;" onclick="toggleCommentLike(${i}, this)"><svg class="icon" style="width:0.9em;height:0.9em;"><use href="#i-heart"/></svg> ${c.likes}</span>
+          <span style="font-size:10.5px;color:var(--muted);cursor:pointer;" onclick="replyToComment('${cleanName}')">Reply</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('pd-no-comments').style.display = p.comments.length ? 'none' : 'block';
+}
+
+function submitQuote() {
+  const quoteText = document.getElementById('quoteTextInput').value.trim();
+  if (!quoteText) return;
+  closeSheet('quoteModal');
+  const originalId = repostSheetTarget;
+  const original = POSTS[originalId];
+  original.reposts += 1;
+  updateRepostUI(originalId);
+  const prof = PROFILES[currentUserId];
+  const cleanQuoteText = quoteText.replace(/</g, '&lt;');
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').doc(originalId).update({
+      reposts: firebase.firestore.FieldValue.increment(1)
+    }).catch(() => showToastMsg('Could not save the repost count — check your connection.'));
+    db.collection('posts').add({
+      authorId: currentUserId, author: prof.name, avatar: prof.initials,
+      avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: prof.mentor, text: cleanQuoteText,
+      likes: 0, likedBy: [], reposts: 0, repostedBy: [], comments: [], quotedPostId: originalId,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => showToastMsg('Could not post your quote — check your connection.'));
+    sendNotification(original.authorId, 'quote');
+  }
+  const id = 'p' + Date.now();
+  POSTS[id] = { authorId: currentUserId, author: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: prof.mentor, text: cleanQuoteText, likes: 0, liked: false, reposts: 0, repostedBy: [], comments: [], time: Date.now(), quotedPostId: originalId };
+  extraFeedItems.unshift({ type: 'post', id, time: POSTS[id].time });
+  renderExtraFeed();
+  renderMyPosts();
+}
+
+function postPersonalContent() {
+  const text = document.getElementById('personalPostText').value.trim();
+  if (!text) { showToastMsg('Write something first.'); return; }
+  const prof = PROFILES[currentUserId];
+  const cleanText = text.replace(/</g, '&lt;');
+  if (FIREBASE_ENABLED) {
+    db.collection('posts').add({
+      authorId: currentUserId, author: prof.name, avatar: prof.initials,
+      avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: false, text: cleanText,
+      likes: 0, reposts: 0, repostedBy: [], comments: [],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      document.getElementById('personalPostText').value = '';
+      showScreen('feed');
+    }).catch(() => showToastMsg('Could not post — check your connection and try again.'));
+    return;
+  }
+  const id = 'p' + Date.now();
+  POSTS[id] = { authorId: currentUserId, author: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: false, text: cleanText, likes: 0, liked: false, reposts: 0, repostedBy: [], comments: [], time: Date.now() };
+  extraFeedItems.unshift({ type: 'post', id, time: POSTS[id].time });
+  renderExtraFeed();
+  renderMyPosts();
+  document.getElementById('personalPostText').value = '';
+  showScreen('feed');
+}
+
+// ---- 6) Fix: notification usernames weren't clickable ------------
+function renderNotifications(items) {
+  const listEl = document.getElementById('notifList');
+  const emptyEl = document.getElementById('notifEmpty');
+  if (!listEl) return;
+  if (!items.length) {
+    listEl.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'block';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  listEl.innerHTML = items.map(n => {
+    const clickAttr = n.fromUserId ? ` onclick="viewProfile('${n.fromUserId}')" style="cursor:pointer;"` : '';
+    return `
+    <div class="card" style="display:flex;gap:10px;align-items:center;${n.read ? '' : 'background:rgba(108,92,231,0.06);'}">
+      <div class="avatar"${clickAttr} style="width:34px;height:34px;font-size:11px;background:${n.fromAvatarBg};color:${n.fromAvatarColor};">${n.fromInitials}</div>
+      <div style="flex:1;font-size:12.5px;"><span${clickAttr}>${notifText(n)}</span><div style="font-size:10.5px;color:var(--muted);margin-top:2px;">${timeAgo(n.time)}</div></div>
+    </div>`;
+  }).join('');
+}
 function ensureNotificationPermission() {
   if (typeof Notification === 'undefined') return;
   if (Notification.permission === 'default') {
@@ -187,6 +317,7 @@ function listenToNotifications() {
         if (!d.read) unreadNotifCount++;
         items.push({
           id: doc.id,
+          fromUserId: d.fromUserId,
           fromName: d.fromName || 'Someone',
           fromInitials: d.fromInitials || '?',
           fromAvatarBg: d.fromAvatarBg || '#6c5ce7',
