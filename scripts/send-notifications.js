@@ -9,18 +9,33 @@
 
 const admin = require("firebase-admin");
 
-// Phones/text viewers sometimes turn the private_key field's literal \n
-// escape sequences into real line breaks when copying the file's content.
-// That makes the raw text invalid JSON (a bare newline inside a quoted
-// string), even though it looks fine to a human. Repair just that one
-// field before parsing, regardless of how the paste mangled it.
-let raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-raw = raw.replace(/"private_key":\s*"([^"]*)"/, (match, key) => {
-  const fixed = key.replace(/\r?\n/g, "\\n");
-  return `"private_key": "${fixed}"`;
-});
-const serviceAccount = JSON.parse(raw);
-admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+// Copying the downloaded .json file's content through a phone's text
+// viewer can reflow long lines, inserting extra line breaks that were
+// never in the original file (on top of, or instead of, the real \n
+// escapes inside private_key). That breaks strict JSON parsing in
+// unpredictable ways. Rather than guess at the exact mangling, pull the
+// three fields we actually need out with tolerant regexes, then rebuild
+// a clean PEM from just the base64 characters — this works no matter
+// how the whitespace/newlines got scrambled.
+const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
+
+function extractField(fieldName) {
+  const re = new RegExp('"' + fieldName + '"\\s*:\\s*"([\\s\\S]*?)"\\s*[,}]');
+  const m = raw.match(re);
+  if (!m) throw new Error("Could not find field in FIREBASE_SERVICE_ACCOUNT_JSON: " + fieldName);
+  return m[1];
+}
+
+const projectId = extractField("project_id").replace(/\s+/g, "");
+const clientEmail = extractField("client_email").replace(/\s+/g, "");
+const privateKeyBody = extractField("private_key")
+  .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+  .replace(/-----END PRIVATE KEY-----/g, "")
+  .replace(/\\n/g, "")
+  .replace(/\s+/g, "");
+const privateKey = `-----BEGIN PRIVATE KEY-----\n${privateKeyBody}\n-----END PRIVATE KEY-----\n`;
+
+admin.initializeApp({ credential: admin.credential.cert({ projectId, clientEmail, privateKey }) });
 
 const db = admin.firestore();
 const messaging = admin.messaging();
