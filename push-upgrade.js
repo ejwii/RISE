@@ -12,6 +12,27 @@
 // untouched and keeps working exactly as before.
 // ============================================================
 
+// ---- 0) Fix: bottom nav scrolling away instead of staying pinned -----
+// Root cause: .phone only had min-height:100vh, so on real mobile
+// devices (not the desktop phone-frame simulation) the whole page grew
+// with content and the browser scrolled the entire page, dragging the
+// bottom nav down with it. Locking .phone to the actual viewport height
+// and letting only .screen-body scroll internally fixes this.
+(function fixBottomNavPinning() {
+  const style = document.createElement('style');
+  style.textContent = `
+    @media (max-width: 639px) {
+      .phone {
+        height: 100vh !important;
+        height: 100dvh !important;
+        min-height: 0 !important;
+        overflow: hidden !important;
+      }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 // ---- 1) Firebase Cloud Messaging setup -----------------------
 let messaging = null;
 if (typeof FIREBASE_ENABLED !== 'undefined' && FIREBASE_ENABLED &&
