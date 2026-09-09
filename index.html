@@ -792,6 +792,13 @@
           <div style="font-weight:600;font-size:13px;">Log out</div>
         </div>
       </div>
+
+      <div class="card" style="cursor:pointer;margin-top:10px;" onclick="confirmDeleteAccount()">
+        <div style="display:flex;align-items:center;gap:10px;color:#e74c3c;">
+          <svg class="icon" style="font-size:18px;"><use href="#i-trash"/></svg>
+          <div style="font-weight:600;font-size:13px;">Delete account</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -876,6 +883,28 @@
       </div>
       <div id="cpError" style="display:none;font-size:11.5px;color:#e74c3c;margin-bottom:10px;"></div>
       <button class="btn btn-purple" id="cpSubmitBtn" onclick="submitChangePassword()"><svg class="icon"><use href="#i-check"/></svg> Update password</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ACCOUNT MODAL -->
+<div class="modal-overlay" id="deleteAccountModal" onclick="if(event.target===this) closeDeleteAccount()">
+  <div class="modal-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-weight:700;font-size:14px;color:#e74c3c;">Delete account</div>
+      <svg class="icon" style="cursor:pointer;color:var(--muted);" onclick="closeDeleteAccount()"><use href="#i-arrow-left"/></svg>
+    </div>
+    <div id="daDemoNote" style="display:none;font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:10px;">RISE isn't connected to a live account system yet, so there's no account to delete here.</div>
+    <div id="daForm">
+      <div style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:12px;">This permanently deletes your profile, posts, and notifications. This can't be undone.</div>
+      <div style="font-size:11px;font-weight:600;margin-bottom:4px;">Enter your password to confirm</div>
+      <div style="position:relative;margin-bottom:10px;">
+        <input type="password" id="daPassword" placeholder="Your password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+        <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('daPassword', this)"><use href="#i-eye"/></svg>
+      </div>
+      <div id="daError" style="display:none;font-size:11.5px;color:#e74c3c;margin-bottom:10px;"></div>
+      <button class="btn" id="daSubmitBtn" style="background:#e74c3c;color:#fff;margin-bottom:8px;" onclick="submitDeleteAccount()"><svg class="icon"><use href="#i-trash"/></svg> Permanently delete</button>
+      <button class="btn btn-outline" onclick="closeDeleteAccount()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1300,6 +1329,85 @@ function submitChangePassword() {
       errEl.textContent = err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'
         ? 'Your current password is incorrect.'
         : (err.code === 'auth/too-many-requests' ? 'Too many attempts — try again later.' : 'Could not update your password. Try again.');
+      errEl.style.display = 'block';
+    });
+}
+function confirmDeleteAccount() {
+  document.getElementById('daPassword').value = '';
+  document.getElementById('daError').style.display = 'none';
+  const demoMode = !FIREBASE_ENABLED;
+  document.getElementById('daDemoNote').style.display = demoMode ? 'block' : 'none';
+  document.getElementById('daForm').style.display = demoMode ? 'none' : 'block';
+  const btn = document.getElementById('daSubmitBtn');
+  btn.disabled = false;
+  btn.innerHTML = '<svg class="icon"><use href="#i-trash"/></svg> Permanently delete';
+  document.getElementById('deleteAccountModal').classList.add('show');
+}
+function closeDeleteAccount() {
+  document.getElementById('deleteAccountModal').classList.remove('show');
+}
+// Wipes everything tied to a uid — their posts, and any notifications
+// they sent or received — before the auth user itself is deleted.
+// Firestore has no cascade delete, so this has to be done by hand.
+function deleteAllUserData(uid) {
+  if (!FIREBASE_ENABLED) return Promise.resolve();
+  function wipeQuery(query) {
+    return query.get().then(snapshot => {
+      if (snapshot.empty) return;
+      const batch = db.batch();
+      snapshot.forEach(doc => batch.delete(doc.ref));
+      return batch.commit();
+    }).catch(() => {});
+  }
+  return Promise.all([
+    wipeQuery(db.collection('posts').where('authorId', '==', uid)),
+    wipeQuery(db.collection('notifications').where('toUserId', '==', uid)),
+    wipeQuery(db.collection('notifications').where('fromUserId', '==', uid)),
+    db.collection('users').doc(uid).delete().catch(() => {})
+  ]);
+}
+function submitDeleteAccount() {
+  const pw = document.getElementById('daPassword').value;
+  const errEl = document.getElementById('daError');
+  const btn = document.getElementById('daSubmitBtn');
+  errEl.style.display = 'none';
+  if (!pw) {
+    errEl.textContent = 'Enter your password to confirm.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const user = auth.currentUser;
+  if (!user) {
+    errEl.textContent = 'You need to be logged in to do this.';
+    errEl.style.display = 'block';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Deleting...';
+  const credential = firebase.auth.EmailAuthProvider.credential(user.email, pw);
+  const uid = user.uid;
+  user.reauthenticateWithCredential(credential)
+    .then(() => deleteAllUserData(uid))
+    .then(() => user.delete())
+    .then(() => {
+      closeDeleteAccount();
+      currentUserId = null;
+      myFollowingIds = new Set();
+      allUsersCache = null;
+      if (feedUnsubscribe) { feedUnsubscribe(); feedUnsubscribe = null; }
+      if (notifUnsubscribe) { notifUnsubscribe(); notifUnsubscribe = null; }
+      unreadNotifCount = 0;
+      updateNotifBadge();
+      try { sessionStorage.removeItem(LAST_SCREEN_KEY); } catch (e) {}
+      showScreen('login');
+      showToastMsg('Your account has been deleted.');
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon"><use href="#i-trash"/></svg> Permanently delete';
+      errEl.textContent = err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'
+        ? 'Your password is incorrect.'
+        : (err.code === 'auth/too-many-requests' ? 'Too many attempts — try again later.' : 'Could not delete your account. Try again.');
       errEl.style.display = 'block';
     });
 }
