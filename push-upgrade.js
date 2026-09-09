@@ -116,7 +116,10 @@ function submitMentorApplication(e) {
         initials, avatarBg: '#f0e6ff', avatarColor: '#6c5ce7', followers: 0, following: 0, followingIds: [],
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
-      return db.collection('users').doc(uid).set(userData).then(() => auth.signOut());
+      return db.collection('users').doc(uid).set(userData).then(() => {
+        syncOwnPublicProfile(uid, userData);
+        return auth.signOut();
+      });
     })
     .then(() => {
       showScreen('mentorPending');
