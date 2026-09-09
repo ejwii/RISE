@@ -141,6 +141,38 @@ function applyActivityNotifToggleUI() {
   });
 })();
 
+// ---- 7) Fix: post detail view showed baked-in "(you)" for anyone ---
+// viewPost() rendered p.author raw with no cleanup at all — the one
+// screen that had neither the existing .replace() workaround nor any
+// per-viewer recomputation. This is the actual source of "someone
+// else's post shows me as (you)" when tapping into a post.
+function viewPost(id) {
+  currentPostId = id;
+  const p = POSTS[id];
+  currentPostAuthorId = p.authorId;
+  document.getElementById('pd-avatar').textContent = p.avatar;
+  document.getElementById('pd-avatar').style.background = p.avatarBg;
+  document.getElementById('pd-avatar').style.color = p.avatarColor;
+  const cleanAuthor = (p.author || '').replace(' (you)', '');
+  const isMe = p.authorId === currentUserId;
+  const youTag = isMe ? ' <span style="font-size:10px;color:var(--muted);font-weight:400;">(you)</span>' : '';
+  const nameEl = document.getElementById('pd-name');
+  nameEl.innerHTML = cleanAuthor + (p.mentor ? ' <svg class="icon" style="color:var(--purple);font-size:12px;"><use href="#i-rosette-discount-check"/></svg>' : '') + youTag;
+  if (p.authorId) {
+    nameEl.style.cursor = 'pointer';
+    nameEl.onclick = () => viewProfile(p.authorId);
+    document.getElementById('pd-avatar').style.cursor = 'pointer';
+    document.getElementById('pd-avatar').onclick = () => viewProfile(p.authorId);
+  }
+  document.getElementById('pd-text').textContent = p.text;
+  document.getElementById('pd-likes').textContent = p.likes;
+  document.getElementById('pd-reposts').textContent = p.reposts;
+  document.getElementById('pd-like-btn').style.color = p.liked ? 'var(--red)' : 'var(--muted)';
+  document.getElementById('pd-repost-btn').style.color = (p.repostedBy || []).includes(currentUserId) ? '#27ae60' : 'var(--muted)';
+  renderComments(p);
+  showScreen('postDetail');
+}
+
 // ---- 5) Fix: "(you)" wrongly baked into stored names ------------
 // Root cause: post/comment creation code appended " (you)" directly into
 // the author name TEXT that gets saved to Firestore, so every viewer —
