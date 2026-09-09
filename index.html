@@ -239,8 +239,8 @@
         <div style="font-size:12px;color:var(--muted);line-height:1.6;">Log in to keep tracking your progress.</div>
       </div>
       <div class="card">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Username</div>
-        <input type="text" id="loginUsername" placeholder="Your username" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px;" />
+        <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Username or email</div>
+        <input type="text" id="loginUsername" placeholder="Username, or email for mentor accounts" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-bottom:12px;" />
         <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">Password</div>
         <div style="position:relative;">
           <input type="password" id="loginPassword" placeholder="Your password" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
@@ -353,17 +353,23 @@
     <div class="screen-body">
       <div class="card">
         <div class="card-title">Real name</div>
-        <input type="text" placeholder="Full legal name" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
+        <input type="text" id="mnName" placeholder="Full legal name" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
         <div class="card-title">Email</div>
-        <input type="email" placeholder="you@email.com" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
-        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Mentor accounts are not anonymous. Your identity is verified before you can post.</div>
+        <input type="email" id="mnEmail" placeholder="you@email.com" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
+        <div class="card-title">Password</div>
+        <div style="position:relative;margin-top:4px;">
+          <input type="password" id="mnPassword" placeholder="6+ characters" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 40px 10px 12px;font-size:13px;outline:none;" />
+          <svg class="icon" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);width:18px;height:18px;" onclick="togglePasswordVisibility('mnPassword', this)"><use href="#i-eye"/></svg>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">Mentor accounts are not anonymous. We'll send a verification link to this email — your real name and email are never shown on your public profile.</div>
       </div>
       <div class="card">
         <div class="card-title">Proof of content</div>
-        <input type="text" placeholder="Instagram / social profile link" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
+        <input type="text" id="mnProof" placeholder="Instagram / social profile link" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;" />
         <div style="font-size:11px;color:var(--muted);margin-top:6px;">We'll check that your content genuinely relates to recovery before approving.</div>
       </div>
-      <button class="btn btn-purple" onclick="showScreen('mentorPending')"><svg class="icon"><use href="#i-arrow-right"/></svg> Submit for review</button>
+      <div id="mnError" style="display:none;color:#e74c3c;font-size:11px;text-align:center;margin-bottom:8px;"></div>
+      <button class="btn btn-purple" id="mnSubmitBtn" onclick="submitMentorSignup()"><svg class="icon"><use href="#i-arrow-right"/></svg> Submit for review</button>
     </div>
   </div>
 
@@ -373,9 +379,13 @@
     <div class="screen-body" style="align-items:center;justify-content:center;display:flex;flex-direction:column;text-align:center;">
       <svg class="icon" style="font-size:40px;color:var(--purple);margin-bottom:12px;"><use href="#i-clock"/></svg>
       <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;margin-bottom:8px;">Under review</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:20px;">We manually verify every mentor. This can take a few days while RISE is early. You'll be notified once approved.</div>
-      <button class="btn btn-purple" style="margin-bottom:10px;" onclick="approveMentor()"><svg class="icon"><use href="#i-check"/></svg> Simulate approval (demo)</button>
-      <button class="btn btn-outline" onclick="showScreen('signupPersonal')">Join as personal account meanwhile</button>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:16px;">We manually verify every mentor. This can take a few days while RISE is early. You'll be notified once approved.</div>
+      <div id="mpVerifyNote" style="display:none;font-size:11.5px;color:#b8722b;line-height:1.6;margin-bottom:16px;background:#fffaf3;border:1px solid #fde3c8;border-radius:10px;padding:10px 12px;">Check your email and click the verification link — we don't start reviewing mentor applications until it's confirmed.</div>
+      <div id="mpVerifiedNote" style="display:none;font-size:11.5px;color:#27ae60;line-height:1.6;margin-bottom:16px;">Email verified. Sit tight while our team reviews your application.</div>
+      <button class="btn btn-outline" id="mpResendBtn" style="display:none;margin-bottom:10px;" onclick="resendMentorVerification()"><svg class="icon"><use href="#i-mail"/></svg> Resend verification email</button>
+      <button class="btn btn-outline" id="mpRecheckBtn" style="display:none;margin-bottom:10px;" onclick="refreshMentorPendingStatus()"><svg class="icon"><use href="#i-check"/></svg> I've verified — check again</button>
+      <button class="btn btn-purple" id="mpDemoApproveBtn" style="display:none;margin-bottom:10px;" onclick="approveMentor()"><svg class="icon"><use href="#i-check"/></svg> Simulate approval (demo)</button>
+      <button class="btn btn-outline" onclick="showScreen('home'); setProfileType('personal');">Continue as personal for now</button>
     </div>
   </div>
 
@@ -1067,9 +1077,15 @@ if (FIREBASE_ENABLED) {
       }
       injectFirestoreProfile(user.uid, doc.data());
       setCurrentUser(user.uid);
-      // Land back on whichever screen they refreshed from, not always 'feed'.
-      const restored = getLastScreen();
-      showScreen(restored || 'feed');
+      const d = doc.data();
+      if (d.pendingMentorReview && !d.mentor) {
+        refreshMentorPendingStatus();
+        showScreen('mentorPending');
+      } else {
+        // Land back on whichever screen they refreshed from, not always 'feed'.
+        const restored = getLastScreen();
+        showScreen(restored || 'feed');
+      }
       hideAuthCheckOverlay();
     }).catch(function () {
       hideAuthCheckOverlay();
@@ -2154,6 +2170,107 @@ function completeSignup() {
       btn.textContent = 'Start day one';
     });
 }
+function submitMentorSignup() {
+  const nameVal = document.getElementById('mnName').value.trim();
+  const emailVal = document.getElementById('mnEmail').value.trim().toLowerCase();
+  const pwVal = document.getElementById('mnPassword').value;
+  const proofVal = document.getElementById('mnProof').value.trim();
+  const errEl = document.getElementById('mnError');
+  const btn = document.getElementById('mnSubmitBtn');
+  errEl.style.display = 'none';
+  if (!nameVal || !emailVal || !pwVal || !proofVal) {
+    errEl.textContent = 'Fill in every field, including your proof-of-content link.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+    errEl.textContent = 'Enter a valid email address — we need to verify it.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (pwVal.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!FIREBASE_ENABLED) {
+    showToastMsg('Demo mode — connect Firebase to enable real mentor sign-ups.');
+    showScreen('mentorPending');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  // Mentor accounts use their real email as the Auth login (unlike
+  // personal accounts, which get a synthetic @riseapp.local address from
+  // usernameToEmail) — that's what lets Firebase actually send a real
+  // verification email, and what mentors log back in with afterward.
+  auth.createUserWithEmailAndPassword(emailVal, pwVal)
+    .then(cred => {
+      const uid = cred.user.uid;
+      const initials = (nameVal.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase()) || 'M';
+      const colors = [['#e8f8f0','#27ae60'], ['#fef0f0','#c0392b'], ['#e0f0ff','#2980b9'], ['#fff4e0','#e67e22']];
+      const [avatarBg, avatarColor] = colors[Math.floor(Math.random() * colors.length)];
+      const userData = {
+        username: nameVal, realName: nameVal, email: emailVal, proofLink: proofVal,
+        mentor: false, pendingMentorReview: true, emailVerified: false,
+        initials, avatarBg, avatarColor, followers: 0, following: 0, followingIds: [],
+        runStartTime: Date.now(), runsHistory: [0],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      return db.collection('users').doc(uid).set(userData)
+        .then(() => cred.user.sendEmailVerification().catch(() => {}))
+        .then(() => injectFirestoreProfile(uid, userData));
+    })
+    .then(uid => {
+      setCurrentUser(uid);
+      refreshMentorPendingStatus();
+      showScreen('mentorPending');
+    })
+    .catch(err => {
+      errEl.textContent = err.code === 'auth/email-already-in-use'
+        ? 'An account already exists with that email.'
+        : (err.message || 'Something went wrong. Try again.');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit for review';
+    });
+}
+// Reflects real verification state on the pending-review screen, and
+// keeps Firestore's emailVerified field current so whoever reviews
+// mentor applications can see it without needing the applicant's session.
+function refreshMentorPendingStatus() {
+  const demoMode = !FIREBASE_ENABLED;
+  document.getElementById('mpDemoApproveBtn').style.display = demoMode ? 'block' : 'none';
+  if (demoMode) {
+    document.getElementById('mpVerifyNote').style.display = 'none';
+    document.getElementById('mpVerifiedNote').style.display = 'none';
+    document.getElementById('mpResendBtn').style.display = 'none';
+    document.getElementById('mpRecheckBtn').style.display = 'none';
+    return;
+  }
+  const user = auth.currentUser;
+  if (!user) return;
+  user.reload().then(() => {
+    const verified = user.emailVerified;
+    document.getElementById('mpVerifyNote').style.display = verified ? 'none' : 'block';
+    document.getElementById('mpVerifiedNote').style.display = verified ? 'block' : 'none';
+    document.getElementById('mpResendBtn').style.display = verified ? 'none' : 'block';
+    document.getElementById('mpRecheckBtn').style.display = verified ? 'none' : 'block';
+    if (currentUserId === user.uid) {
+      db.collection('users').doc(user.uid).update({ emailVerified: verified }).catch(() => {});
+    }
+  }).catch(() => {});
+}
+function resendMentorVerification() {
+  const user = auth.currentUser;
+  if (!user) return;
+  const btn = document.getElementById('mpResendBtn');
+  btn.disabled = true;
+  user.sendEmailVerification()
+    .then(() => showToastMsg('Verification email sent.'))
+    .catch(() => showToastMsg('Could not send verification email — try again shortly.'))
+    .then(() => { btn.disabled = false; });
+}
 function injectFirestoreProfile(uid, d) {
   myFollowingIds = new Set(d.followingIds || []);
   PROFILES[uid] = {
@@ -2278,11 +2395,11 @@ function togglePasswordVisibility(inputId, iconEl) {
 }
 
 function attemptLogin() {
-  const u = document.getElementById('loginUsername').value.trim().toLowerCase();
+  const raw = document.getElementById('loginUsername').value.trim();
   const pw = document.getElementById('loginPassword').value.trim();
   const errEl = document.getElementById('loginError');
-  if (!u || !pw) {
-    errEl.textContent = 'Enter both a username and password.';
+  if (!raw || !pw) {
+    errEl.textContent = 'Enter both a username/email and password.';
     errEl.style.display = 'block';
     return;
   }
@@ -2292,15 +2409,26 @@ function attemptLogin() {
     errEl.style.display = 'block';
     return;
   }
-  auth.signInWithEmailAndPassword(usernameToEmail(u), pw)
+  // Personal accounts log in with a username (mapped to a synthetic
+  // address); mentor accounts signed up with a real email, so anything
+  // containing "@" is used directly instead of being run through
+  // usernameToEmail.
+  const loginEmail = raw.includes('@') ? raw.toLowerCase() : usernameToEmail(raw.toLowerCase());
+  auth.signInWithEmailAndPassword(loginEmail, pw)
     .then(cred => db.collection('users').doc(cred.user.uid).get().then(doc => {
       if (!doc.exists) throw new Error('No profile found for this account.');
-      injectFirestoreProfile(cred.user.uid, doc.data());
+      const d = doc.data();
+      injectFirestoreProfile(cred.user.uid, d);
       setCurrentUser(cred.user.uid);
-      showScreen('feed');
+      if (d.pendingMentorReview && !d.mentor) {
+        refreshMentorPendingStatus();
+        showScreen('mentorPending');
+      } else {
+        showScreen('feed');
+      }
     }))
     .catch(err => {
-      errEl.textContent = 'Incorrect username or password.';
+      errEl.textContent = 'Incorrect username/email or password.';
       errEl.style.display = 'block';
     });
 }
