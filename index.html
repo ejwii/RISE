@@ -1350,21 +1350,38 @@ function closeDeleteAccount() {
 // they sent or received — before the auth user itself is deleted.
 // Firestore has no cascade delete, so this has to be done by hand.
 function deleteAllUserData(uid) {
-  if (!FIREBASE_ENABLED) return Promise.resolve();
-  function wipeQuery(query) {
+  if (!FIREBASE_ENABLED) return Promise.resolve(true);
+  let allOk = true;
+  function wipeQuery(label, query) {
     return query.get().then(snapshot => {
       if (snapshot.empty) return;
       const batch = db.batch();
       snapshot.forEach(doc => batch.delete(doc.ref));
       return batch.commit();
-    }).catch(() => {});
+    }).catch(err => {
+      // Don't hide this — a permission-denied error here means Firestore
+      // Rules are blocking the delete, and swallowing it silently just
+      // leaves orphaned data behind while the UI claims success.
+      console.error('deleteAllUserData failed for ' + label + ':', err.code || err.message || err);
+      allOk = false;
+    });
+  }
+  function wipeDoc(label, ref) {
+    return ref.delete().catch(err => {
+      console.error('deleteAllUserData failed for ' + label + ':', err.code || err.message || err);
+      allOk = false;
+    });
   }
   return Promise.all([
-    wipeQuery(db.collection('posts').where('authorId', '==', uid)),
-    wipeQuery(db.collection('notifications').where('toUserId', '==', uid)),
-    wipeQuery(db.collection('notifications').where('fromUserId', '==', uid)),
-    db.collection('users').doc(uid).delete().catch(() => {})
-  ]);
+    wipeQuery('posts', db.collection('posts').where('authorId', '==', uid)),
+    wipeQuery('notifications(to)', db.collection('notifications').where('toUserId', '==', uid)),
+    wipeQuery('notifications(from)', db.collection('notifications').where('fromUserId', '==', uid)),
+    wipeDoc('users doc', db.collection('users').doc(uid)),
+    // publicProfiles is the collection search/profile-view actually reads
+    // from (see syncOwnPublicProfile) — deleting only /users/{uid} leaves
+    // the account fully visible in search, so both must go together.
+    wipeDoc('publicProfiles doc', db.collection('publicProfiles').doc(uid))
+  ]).then(() => allOk);
 }
 function submitDeleteAccount() {
   const pw = document.getElementById('daPassword').value;
@@ -1386,9 +1403,10 @@ function submitDeleteAccount() {
   btn.textContent = 'Deleting...';
   const credential = firebase.auth.EmailAuthProvider.credential(user.email, pw);
   const uid = user.uid;
+  let dataFullyWiped = true;
   user.reauthenticateWithCredential(credential)
     .then(() => deleteAllUserData(uid))
-    .then(() => user.delete())
+    .then(ok => { dataFullyWiped = ok; return user.delete(); })
     .then(() => {
       closeDeleteAccount();
       currentUserId = null;
@@ -1400,7 +1418,9 @@ function submitDeleteAccount() {
       updateNotifBadge();
       try { sessionStorage.removeItem(LAST_SCREEN_KEY); } catch (e) {}
       showScreen('login');
-      showToastMsg('Your account has been deleted.');
+      showToastMsg(dataFullyWiped
+        ? 'Your account has been deleted.'
+        : 'Your account was deleted, but some data couldn\'t be cleared — check the browser console and your Firestore rules.');
     })
     .catch(err => {
       btn.disabled = false;
