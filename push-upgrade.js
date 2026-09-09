@@ -169,7 +169,7 @@ function viewPost(id) {
   const isMe = p.authorId === currentUserId;
   const youTag = isMe ? ' <span style="font-size:10px;color:var(--muted);font-weight:400;">(you)</span>' : '';
   const nameEl = document.getElementById('pd-name');
-  nameEl.innerHTML = cleanAuthor + (p.mentor ? ' <svg class="icon" style="color:var(--purple);font-size:12px;"><use href="#i-rosette-discount-check"/></svg>' : '') + youTag;
+  nameEl.innerHTML = cleanAuthor + (p.mentor ? ' <svg class="icon" style="color:var(--verified-blue);font-size:12px;"><use href="#i-rosette-discount-check"/></svg>' : '') + youTag;
   if (p.authorId) {
     nameEl.style.cursor = 'pointer';
     nameEl.onclick = () => viewProfile(p.authorId);
