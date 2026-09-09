@@ -33,103 +33,17 @@
   document.head.appendChild(style);
 })();
 
-// ---- 8) Real mentor application flow --------------------------
-// The mentor signup screens existed only as a visual mockup: the real
-// name / email / social link inputs had no id attributes (nothing read
-// them), "Submit for review" just navigated to a static "pending"
-// screen, and "Simulate approval (demo)" only faked local UI state —
-// none of it touched Firestore or created a real account. This wires
-// it up for real, reusing the exact same username/password + Firebase
-// Auth pattern the working personal signup already uses.
-(function setupRealMentorSignup() {
-  const mentorScreen = document.getElementById('screen-signupMentor');
-  if (!mentorScreen || document.getElementById('mentorUsername')) return; // already set up
-
-  const cards = mentorScreen.querySelectorAll('.card');
-  const identityCard = cards[0]; // has "Real name" + "Email" inputs
-  const proofCard = cards[1];    // has the social-link input
-  if (!identityCard || !proofCard) return;
-
-  const nameInput = identityCard.querySelector('input[type="text"]');
-  const emailInput = identityCard.querySelector('input[type="email"]');
-  const socialInput = proofCard.querySelector('input[type="text"]');
-  if (nameInput) nameInput.id = 'mentorRealName';
-  if (emailInput) emailInput.id = 'mentorEmail';
-  if (socialInput) socialInput.id = 'mentorSocialLink';
-
-  // Add the username/password fields every Firebase Auth account needs
-  // (the real name/email above are for identity review, not login).
-  identityCard.insertAdjacentHTML('afterbegin', `
-    <div class="card-title">Username</div>
-    <input type="text" id="mentorUsername" placeholder="Public display name" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
-    <div class="card-title">Password</div>
-    <input type="password" id="mentorPassword" placeholder="••••••••" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px;outline:none;margin-top:4px;margin-bottom:10px;" />
-  `);
-
-  const errDiv = document.createElement('div');
-  errDiv.id = 'mentorSignupError';
-  errDiv.style.cssText = 'display:none;color:#e74c3c;font-size:11px;margin-top:8px;';
-  proofCard.appendChild(errDiv);
-
-  const submitBtn = Array.from(mentorScreen.querySelectorAll('button')).find(b => b.textContent.includes('Submit for review'));
-  if (submitBtn) {
-    submitBtn.setAttribute('onclick', '');
-    submitBtn.onclick = submitMentorApplication;
-  }
-
-  // The old fake button no longer applies to a real pending application.
-  const fakeApproveBtn = document.getElementById('screen-mentorPending')
-    ? Array.from(document.getElementById('screen-mentorPending').querySelectorAll('button')).find(b => b.textContent.includes('Simulate approval'))
-    : null;
-  if (fakeApproveBtn) fakeApproveBtn.style.display = 'none';
-})();
-
-function submitMentorApplication(e) {
-  const username = document.getElementById('mentorUsername').value.trim();
-  const password = document.getElementById('mentorPassword').value.trim();
-  const realName = document.getElementById('mentorRealName').value.trim();
-  const email = document.getElementById('mentorEmail').value.trim();
-  const socialLink = document.getElementById('mentorSocialLink').value.trim();
-  const errEl = document.getElementById('mentorSignupError');
-
-  if (!username || password.length < 6 || !realName || !email || !socialLink) {
-    errEl.textContent = 'Fill in every field — password needs 6+ characters.';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (!FIREBASE_ENABLED) {
-    showToastMsg('Demo mode — connect Firebase to enable real mentor sign-ups.');
-    return;
-  }
-  errEl.style.display = 'none';
-  const submitBtn = e && e.target ? e.target.closest('button') : null;
-  if (submitBtn) submitBtn.textContent = 'Submitting...';
-
-  const loginEmail = usernameToEmail(username);
-  auth.createUserWithEmailAndPassword(loginEmail, password)
-    .then(cred => {
-      const uid = cred.user.uid;
-      const initials = username.slice(0, 2).toUpperCase();
-      const userData = {
-        username, mentor: false,
-        mentorApplication: { realName, email, socialLink, submittedAt: firebase.firestore.FieldValue.serverTimestamp() },
-        initials, avatarBg: '#f0e6ff', avatarColor: '#6c5ce7', followers: 0, following: 0, followingIds: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-      return db.collection('users').doc(uid).set(userData).then(() => {
-        syncOwnPublicProfile(uid, userData);
-        return auth.signOut();
-      });
-    })
-    .then(() => {
-      showScreen('mentorPending');
-    })
-    .catch(err => {
-      errEl.textContent = err.code === 'auth/email-already-in-use' ? 'That username is already taken.' : (err.message || 'Something went wrong. Try again.');
-      errEl.style.display = 'block';
-      if (submitBtn) submitBtn.innerHTML = '<svg class="icon"><use href="#i-arrow-right"/></svg> Submit for review';
-    });
-}
+// ---- 8) (removed) ------------------------------------------------
+// This used to override the mentor "Submit for review" button with a
+// second, parallel signup implementation that injected duplicate
+// username/password fields and wrote user docs WITHOUT
+// pendingMentorReview — silently defeating the manual-review gate
+// (every mentor applicant looked identical to a personal account
+// until an admin happened to notice the mentorApplication field by
+// hand). The base index.html already has a correct, working
+// submitMentorSignup() — real email, real Firebase verification
+// email, and pendingMentorReview:true set from the start — so it's
+// left alone here to run as intended.
 
 // ---- 1) Firebase Cloud Messaging setup -----------------------
 let messaging = null;
