@@ -460,3 +460,126 @@ function saveReminderSettings() {
     persistAndReturn();
   }
 }
+
+// ---- 9) Mentor bio editing + real profile photo upload ------------
+// mv-bio was hardcoded placeholder text with no way to change it, and
+// mv-avatar was just initials in a colored circle with no click
+// handler at all — mentors had no way to set a real photo. This adds
+// a tap-to-edit bio and a tap-to-upload avatar (opens the device's
+// camera or photo library, same as any normal app), persists both to
+// Firestore (/users/{uid} and /publicProfiles/{uid} so other people
+// viewing this mentor's profile see them too), and patches the three
+// existing functions that build a profile's on-screen state
+// (setCurrentUser, viewProfile, injectFirestoreProfile) so a saved
+// photo actually renders instead of just being stored invisibly.
+//
+// Scope note: this covers the mentor's own profile view (mv-avatar)
+// and other people's view of that profile (vp-avatar). Feed posts,
+// comments, and search results still show initials-only avatars for
+// now — extending the photo everywhere else is a bigger, separate
+// pass through feedPostCardHTML/renderComments/renderSearchResults/
+// renderMessagesList if you want that too.
+function applyMentorAvatarUrl(uid, url) {
+  if (PROFILES[uid]) PROFILES[uid].avatarUrl = url;
+  if (uid === currentUserId) {
+    const el = document.getElementById('mv-avatar');
+    if (el) {
+      el.style.backgroundImage = `url("${url}")`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.textContent = '';
+    }
+  }
+  if (uid === currentViewedProfile) {
+    const el = document.getElementById('vp-avatar');
+    if (el) {
+      el.style.backgroundImage = `url("${url}")`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+      el.textContent = '';
+    }
+  }
+}
+
+(function setupMentorProfileEditing() {
+  const bioEl = document.getElementById('mv-bio');
+  const avatarEl = document.getElementById('mv-avatar');
+  if (!bioEl || !avatarEl || document.getElementById('mvAvatarFileInput')) return; // already set up
+
+  // --- Bio: tap to edit ---
+  bioEl.style.cursor = 'pointer';
+  bioEl.title = 'Tap to edit your bio';
+  bioEl.onclick = function () {
+    if (!FIREBASE_ENABLED || !currentUserId) return;
+    const current = bioEl.textContent.trim();
+    const next = prompt('Edit your bio:', current);
+    if (next === null) return;
+    const trimmed = next.trim();
+    bioEl.textContent = trimmed;
+    db.collection('users').doc(currentUserId).update({ bio: trimmed }).then(() => {
+      const publicRef = db.collection('publicProfiles').doc(currentUserId);
+      return publicRef.update({ bio: trimmed }).catch(() => publicRef.set({ bio: trimmed }, { merge: true }));
+    }).then(() => {
+      const p = PROFILES[currentUserId];
+      if (p) p.bio = trimmed;
+    }).catch(() => showToastMsg('Could not save your bio — check your connection.'));
+  };
+
+  // --- Avatar: tap to upload (camera or library) ---
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.id = 'mvAvatarFileInput';
+  fileInput.accept = 'image/*';
+  // "capture" nudges mobile browsers toward opening the camera directly;
+  // the device's normal picker still offers "choose from library" too.
+  fileInput.capture = 'environment';
+  fileInput.style.display = 'none';
+  avatarEl.parentElement.insertBefore(fileInput, avatarEl.nextSibling);
+
+  avatarEl.style.cursor = 'pointer';
+  avatarEl.title = 'Tap to change your photo';
+  avatarEl.onclick = function () { fileInput.click(); };
+
+  fileInput.onchange = function (event) {
+    const file = event.target.files[0];
+    if (!file || !currentUserId) return;
+    if (!FIREBASE_ENABLED) { showToastMsg('Demo mode — connect Firebase to upload a real photo.'); return; }
+    showToastMsg('Uploading photo...');
+    const filePath = `avatars/${currentUserId}/${Date.now()}_${file.name}`;
+    storage.ref(filePath).put(file)
+      .then(snapshot => snapshot.ref.getDownloadURL())
+      .then(url => {
+        applyMentorAvatarUrl(currentUserId, url);
+        const publicRef = db.collection('publicProfiles').doc(currentUserId);
+        return Promise.all([
+          db.collection('users').doc(currentUserId).update({ avatarUrl: url }),
+          publicRef.update({ avatarUrl: url }).catch(() => publicRef.set({ avatarUrl: url }, { merge: true }))
+        ]);
+      })
+      .then(() => showToastMsg('Profile photo updated.'))
+      .catch(() => showToastMsg('Could not upload your photo — check your connection and try again.'));
+  };
+})();
+
+// Wrap (not redeclare) the three functions that build profile state,
+// so a saved avatarUrl actually renders wherever these already run.
+const _origSetCurrentUser = setCurrentUser;
+setCurrentUser = function (id) {
+  _origSetCurrentUser(id);
+  const p = PROFILES[id];
+  if (p && p.avatarUrl) applyMentorAvatarUrl(id, p.avatarUrl);
+};
+
+const _origViewProfile = viewProfile;
+viewProfile = function (id) {
+  _origViewProfile(id);
+  const p = PROFILES[id];
+  if (p && p.avatarUrl) applyMentorAvatarUrl(id, p.avatarUrl);
+};
+
+const _origInjectFirestoreProfile = injectFirestoreProfile;
+injectFirestoreProfile = function (uid, d) {
+  const result = _origInjectFirestoreProfile(uid, d);
+  if (PROFILES[uid] && d.avatarUrl) PROFILES[uid].avatarUrl = d.avatarUrl;
+  return result;
+};
