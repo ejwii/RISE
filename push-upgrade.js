@@ -548,47 +548,167 @@ function applyMentorAvatarUrl(uid, url) {
     const file = event.target.files[0];
     if (!file || !currentUserId) return;
     if (!FIREBASE_ENABLED) { showToastMsg('Demo mode — connect Firebase to upload a real photo.'); return; }
-    const filePath = `avatars/${currentUserId}/${Date.now()}_${file.name}`;
-    const uploadTask = storage.ref(filePath).put(file);
     showToastMsg('Uploading photo...');
 
     let settled = false;
     const stallTimer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      uploadTask.cancel();
       showToastMsg('Upload is taking too long — check your connection and try again.');
     }, 45000);
 
-    uploadTask.on('state_changed',
-      () => {}, // no visible progress UI for the avatar upload; the timeout above still guards it
-      (err) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(stallTimer);
-        console.error('Avatar upload failed:', err);
-        showToastMsg('Could not upload your photo — check your connection and try again.');
-      },
-      () => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(stallTimer);
-        uploadTask.snapshot.ref.getDownloadURL().then(url => {
-          applyMentorAvatarUrl(currentUserId, url);
-          const publicRef = db.collection('publicProfiles').doc(currentUserId);
-          return Promise.all([
-            db.collection('users').doc(currentUserId).update({ avatarUrl: url }),
-            publicRef.update({ avatarUrl: url }).catch(() => publicRef.set({ avatarUrl: url }, { merge: true }))
-          ]);
-        }).then(() => showToastMsg('Profile photo updated.'))
-        .catch((err) => {
-          console.error('Could not finish avatar upload:', err);
-          showToastMsg('Could not upload your photo — check your connection and try again.');
-        });
-      }
-    );
+    uploadToCloudinary(file).then(url => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(stallTimer);
+      applyMentorAvatarUrl(currentUserId, url);
+      const publicRef = db.collection('publicProfiles').doc(currentUserId);
+      return Promise.all([
+        db.collection('users').doc(currentUserId).update({ avatarUrl: url }),
+        publicRef.update({ avatarUrl: url }).catch(() => publicRef.set({ avatarUrl: url }, { merge: true }))
+      ]);
+    }).then(() => { if (!settled) return; showToastMsg('Profile photo updated.'); })
+    .catch((err) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(stallTimer);
+      console.error('Could not finish avatar upload:', err);
+      showToastMsg('Could not upload your photo — check your connection and try again.');
+    });
   };
 })();
+
+// ---- 10) Media uploads via Cloudinary instead of Firebase Storage -----
+// Firebase Storage requires the paid Blaze plan. Cloudinary's free tier
+// supports unsigned uploads straight from the browser, so both the
+// mentor avatar upload (above) and the mentor "Post to feed" media
+// upload (below) now send files there instead and save the returned
+// secure_url into Firestore exactly like the Storage download URL did
+// before. Nothing else about the data model changes.
+//
+// Fill in your cloud name below — find it on your Cloudinary dashboard
+// (top of the page / Settings > Product environment settings, labeled
+// "Cloud name"). CLOUDINARY_UPLOAD_PRESET must be an UNSIGNED preset
+// (yours is named tbju9kel per your Cloudinary console).
+const CLOUDINARY_CLOUD_NAME = 'REPLACE_WITH_YOUR_CLOUD_NAME';
+const CLOUDINARY_UPLOAD_PRESET = 'tbju9kel';
+
+function uploadToCloudinary(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    if (!CLOUDINARY_CLOUD_NAME || CLOUDINARY_CLOUD_NAME.indexOf('REPLACE_WITH') === 0) {
+      reject(new Error('Cloudinary cloud name is not configured yet.'));
+      return;
+    }
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`);
+    xhr.upload.onprogress = (e) => {
+      if (onProgress && e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data.secure_url);
+        } catch (err) { reject(err); }
+      } else {
+        reject(new Error(`Cloudinary upload failed (${xhr.status}): ${xhr.responseText}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload'));
+    xhr.send(formData);
+  });
+}
+
+// Override: same as index.html's postMentorContent, but attached media
+// now goes to Cloudinary instead of Firebase Storage.
+postMentorContent = function () {
+  const input = document.getElementById('mentorPostText');
+  const text = input.value.trim();
+  if (!text) { showToastMsg('Write something first.'); return; }
+  const prof = PROFILES[currentUserId];
+  const cleanText = text.replace(/</g, '&lt;');
+  const btn = document.getElementById('mentorPostBtn');
+
+  if (!FIREBASE_ENABLED) {
+    const id = 'p' + Date.now();
+    POSTS[id] = { authorId: currentUserId, author: prof.name, avatar: prof.initials, avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: true, text: cleanText, likes: 0, liked: false, reposts: 0, repostedBy: [], comments: [], time: Date.now() };
+    if (mentorAttachedMedia) {
+      POSTS[id].mediaUrl = mentorAttachedMedia.url;
+      POSTS[id].mediaType = mentorAttachedMedia.type;
+    }
+    extraFeedItems.unshift({ type: 'post', id, time: POSTS[id].time });
+    renderExtraFeed();
+    renderMyPosts();
+    input.value = '';
+    clearMentorMedia();
+    showToastMsg("Posted. It's live at the top of the Home feed and on your profile.");
+    showScreen('home');
+    setProfileType('mentor');
+    return;
+  }
+
+  const postData = {
+    authorId: currentUserId, author: prof.name, avatar: prof.initials,
+    avatarBg: prof.avatarBg, avatarColor: prof.avatarColor, mentor: true, text: cleanText,
+    likes: 0, likedBy: [], reposts: 0, repostedBy: [], comments: [],
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  const finishPost = () => {
+    db.collection('posts').add(postData).then(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+      input.value = '';
+      clearMentorMedia();
+      showToastMsg("Posted. It's live at the top of the Home feed and on your profile.");
+      showScreen('home');
+      setProfileType('mentor');
+    }).catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+      showToastMsg('Could not post — check your connection and try again.');
+    });
+  };
+
+  btn.disabled = true;
+  if (mentorAttachedMedia && mentorAttachedMedia.file) {
+    btn.textContent = 'Uploading media... 0%';
+    let settled = false;
+    const stallTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+      showToastMsg('Upload is taking too long — check your connection and try again.');
+    }, 45000);
+
+    uploadToCloudinary(mentorAttachedMedia.file, (pct) => {
+      if (settled) return;
+      btn.textContent = `Uploading media... ${pct}%`;
+    }).then(url => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(stallTimer);
+      postData.mediaUrl = url;
+      postData.mediaType = mentorAttachedMedia.type;
+      btn.textContent = 'Posting...';
+      finishPost();
+    }).catch(err => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(stallTimer);
+      console.error('Media upload failed:', err);
+      btn.disabled = false;
+      btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+      showToastMsg('Could not upload your media — check your connection and try again.');
+    });
+  } else {
+    btn.textContent = 'Posting...';
+    finishPost();
+  }
+};
 
 // Wrap (not redeclare) the three functions that build profile state,
 // so a saved avatarUrl actually renders wherever these already run.
