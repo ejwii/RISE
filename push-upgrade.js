@@ -506,10 +506,9 @@ function applyMentorAvatarUrl(uid, url) {
   const avatarEl = document.getElementById('mv-avatar');
   if (!bioEl || !avatarEl || document.getElementById('mvAvatarFileInput')) return; // already set up
 
-  // --- Bio: tap to edit ---
-  bioEl.style.cursor = 'pointer';
-  bioEl.title = 'Tap to edit your bio';
-  bioEl.onclick = function () {
+  // --- Bio: edit via the visible "Edit bio" button (Instagram-style), ---
+  // plus the bio text itself stays clickable as a shortcut to the same action.
+  function editMentorBio() {
     if (!FIREBASE_ENABLED || !currentUserId) return;
     const current = bioEl.textContent.trim();
     const next = prompt('Edit your bio:', current);
@@ -523,7 +522,12 @@ function applyMentorAvatarUrl(uid, url) {
       const p = PROFILES[currentUserId];
       if (p) p.bio = trimmed;
     }).catch(() => showToastMsg('Could not save your bio — check your connection.'));
-  };
+  }
+  bioEl.style.cursor = 'pointer';
+  bioEl.title = 'Tap to edit your bio';
+  bioEl.onclick = editMentorBio;
+  const editBioBtn = document.getElementById('mvEditBioBtn');
+  if (editBioBtn) editBioBtn.onclick = editMentorBio;
 
   // --- Avatar: tap to upload (camera or library) ---
   const fileInput = document.createElement('input');
@@ -544,20 +548,45 @@ function applyMentorAvatarUrl(uid, url) {
     const file = event.target.files[0];
     if (!file || !currentUserId) return;
     if (!FIREBASE_ENABLED) { showToastMsg('Demo mode — connect Firebase to upload a real photo.'); return; }
-    showToastMsg('Uploading photo...');
     const filePath = `avatars/${currentUserId}/${Date.now()}_${file.name}`;
-    storage.ref(filePath).put(file)
-      .then(snapshot => snapshot.ref.getDownloadURL())
-      .then(url => {
-        applyMentorAvatarUrl(currentUserId, url);
-        const publicRef = db.collection('publicProfiles').doc(currentUserId);
-        return Promise.all([
-          db.collection('users').doc(currentUserId).update({ avatarUrl: url }),
-          publicRef.update({ avatarUrl: url }).catch(() => publicRef.set({ avatarUrl: url }, { merge: true }))
-        ]);
-      })
-      .then(() => showToastMsg('Profile photo updated.'))
-      .catch(() => showToastMsg('Could not upload your photo — check your connection and try again.'));
+    const uploadTask = storage.ref(filePath).put(file);
+    showToastMsg('Uploading photo...');
+
+    let settled = false;
+    const stallTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      uploadTask.cancel();
+      showToastMsg('Upload is taking too long — check your connection and try again.');
+    }, 45000);
+
+    uploadTask.on('state_changed',
+      () => {}, // no visible progress UI for the avatar upload; the timeout above still guards it
+      (err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(stallTimer);
+        console.error('Avatar upload failed:', err);
+        showToastMsg('Could not upload your photo — check your connection and try again.');
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(stallTimer);
+        uploadTask.snapshot.ref.getDownloadURL().then(url => {
+          applyMentorAvatarUrl(currentUserId, url);
+          const publicRef = db.collection('publicProfiles').doc(currentUserId);
+          return Promise.all([
+            db.collection('users').doc(currentUserId).update({ avatarUrl: url }),
+            publicRef.update({ avatarUrl: url }).catch(() => publicRef.set({ avatarUrl: url }, { merge: true }))
+          ]);
+        }).then(() => showToastMsg('Profile photo updated.'))
+        .catch((err) => {
+          console.error('Could not finish avatar upload:', err);
+          showToastMsg('Could not upload your photo — check your connection and try again.');
+        });
+      }
+    );
   };
 })();
 
