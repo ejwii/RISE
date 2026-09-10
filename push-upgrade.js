@@ -590,7 +590,7 @@ function applyMentorAvatarUrl(uid, url) {
 // (top of the page / Settings > Product environment settings, labeled
 // "Cloud name"). CLOUDINARY_UPLOAD_PRESET must be an UNSIGNED preset
 // (yours is named tbju9kel per your Cloudinary console).
-const CLOUDINARY_CLOUD_NAME = 'REPLACE_WITH_YOUR_CLOUD_NAME';
+const CLOUDINARY_CLOUD_NAME = 'kqaaih6c';
 const CLOUDINARY_UPLOAD_PRESET = 'tbju9kel';
 
 function uploadToCloudinary(file, onProgress) {
