@@ -654,6 +654,7 @@
           <div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px;"><span id="mv-name">Your name</span> <svg class="icon" style="color:var(--verified-blue);font-size:15px;"><use href="#i-rosette-discount-check"/></svg></div>
           <div id="mv-subtitle" style="font-size:11px;color:var(--muted);margin-top:2px;">Verified mentor · Real identity on file</div>
           <div id="mv-bio" style="font-size:12px;color:var(--text);margin-top:10px;line-height:1.6;">3 years sober. Here for whoever needs proof it's possible. Not a therapist — just further down the road.</div>
+          <button id="mvEditBioBtn" style="margin-top:10px;background:none;border:1.5px solid var(--border);color:var(--text);border-radius:8px;padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Edit bio</button>
           <div style="display:flex;justify-content:center;gap:24px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
             <div style="cursor:pointer;" onclick="viewOwnFollowList('posts', currentUserId)"><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;" id="mv-posts">14</div><div style="font-size:10px;color:var(--muted);">Posts</div></div>
             <div style="cursor:pointer;" onclick="viewOwnFollowList('followers', currentUserId)"><div style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:700;" id="mv-followers">214</div><div style="font-size:10px;color:var(--muted);">Followers</div></div>
@@ -1839,21 +1840,55 @@ function postMentorContent() {
     };
     btn.disabled = true;
     if (mentorAttachedMedia && mentorAttachedMedia.file) {
-      btn.textContent = 'Uploading media...';
+      btn.textContent = 'Uploading media... 0%';
       const filePath = `posts/${currentUserId}/${Date.now()}_${mentorAttachedMedia.file.name}`;
-      storage.ref(filePath).put(mentorAttachedMedia.file)
-        .then(snapshot => snapshot.ref.getDownloadURL())
-        .then(url => {
-          postData.mediaUrl = url;
-          postData.mediaType = mentorAttachedMedia.type;
-          btn.textContent = 'Posting...';
-          finishPost();
-        })
-        .catch(() => {
+      const uploadTask = storage.ref(filePath).put(mentorAttachedMedia.file);
+
+      // Safety net: if the upload stalls (no error, no completion — e.g. a
+      // dropped connection the SDK never reports), don't let the button sit
+      // stuck forever. Cancel and let the user retry.
+      let settled = false;
+      const stallTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        uploadTask.cancel();
+        btn.disabled = false;
+        btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+        showToastMsg('Upload is taking too long — check your connection and try again.');
+      }, 45000);
+
+      uploadTask.on('state_changed',
+        (snapshot) => {
+          if (settled) return;
+          const pct = snapshot.totalBytes ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100) : 0;
+          btn.textContent = `Uploading media... ${pct}%`;
+        },
+        (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(stallTimer);
+          console.error('Media upload failed:', err);
           btn.disabled = false;
           btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
           showToastMsg('Could not upload your media — check your connection and try again.');
-        });
+        },
+        () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(stallTimer);
+          uploadTask.snapshot.ref.getDownloadURL().then(url => {
+            postData.mediaUrl = url;
+            postData.mediaType = mentorAttachedMedia.type;
+            btn.textContent = 'Posting...';
+            finishPost();
+          }).catch((err) => {
+            console.error('Could not get media download URL:', err);
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg> Post to feed';
+            showToastMsg('Could not upload your media — check your connection and try again.');
+          });
+        }
+      );
     } else {
       btn.textContent = 'Posting...';
       finishPost();
