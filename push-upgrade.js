@@ -177,6 +177,27 @@ function viewPost(id) {
     document.getElementById('pd-avatar').onclick = () => viewProfile(p.authorId);
   }
   document.getElementById('pd-text').textContent = p.text;
+
+  // The postDetail screen (index.html) never had an element to show
+  // attached media — only the feed card did — so a post's photo/video
+  // rendered fine in the feed but vanished when you tapped into it.
+  // Inject one after pd-text the first time, then fill/hide it per post.
+  let mediaEl = document.getElementById('pd-media');
+  if (!mediaEl) {
+    mediaEl = document.createElement('div');
+    mediaEl.id = 'pd-media';
+    document.getElementById('pd-text').insertAdjacentElement('afterend', mediaEl);
+  }
+  if (p.mediaUrl) {
+    mediaEl.style.display = 'block';
+    mediaEl.innerHTML = p.mediaType === 'video'
+      ? `<video src="${p.mediaUrl}" controls style="width:100%;max-height:320px;border-radius:12px;margin-top:8px;"></video>`
+      : `<img src="${p.mediaUrl}" style="width:100%;max-height:320px;object-fit:cover;border-radius:12px;margin-top:8px;" />`;
+  } else {
+    mediaEl.style.display = 'none';
+    mediaEl.innerHTML = '';
+  }
+
   document.getElementById('pd-likes').textContent = p.likes;
   document.getElementById('pd-reposts').textContent = p.reposts;
   document.getElementById('pd-like-btn').style.color = p.liked ? 'var(--red)' : 'var(--muted)';
@@ -627,7 +648,8 @@ function uploadToCloudinary(file, onProgress) {
 postMentorContent = function () {
   const input = document.getElementById('mentorPostText');
   const text = input.value.trim();
-  if (!text) { showToastMsg('Write something first.'); return; }
+  const hasMedia = !!(mentorAttachedMedia && mentorAttachedMedia.file);
+  if (!text && !hasMedia) { showToastMsg('Write something or attach a photo/video.'); return; }
   const prof = PROFILES[currentUserId];
   const cleanText = text.replace(/</g, '&lt;');
   const btn = document.getElementById('mentorPostBtn');
